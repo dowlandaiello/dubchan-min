@@ -1,0 +1,2 @@
+# dubchan-min
+Minimalist dubchan.
