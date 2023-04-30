@@ -4,7 +4,7 @@ import Hash exposing (Hash)
 import Html exposing (Html, div, h1, img, input, label, p, text, textarea, video)
 import Html.Attributes exposing (class, for, id, placeholder, src, title)
 import Html.Events exposing (onClick, onInput)
-import Json.Decode as JD exposing (Decoder, Error, field, int, list, map2, map4, map6, nullable, string)
+import Json.Decode as JD exposing (Decoder, Error, field, int, list, map2, map3, map4, map6, nullable, string)
 import Json.Encode as JE
 import List as L
 import Maybe as M
@@ -31,6 +31,11 @@ type alias Submission =
     }
 
 
+type alias CommentSubmission =
+    { text : String
+    }
+
+
 setTitle : String -> Submission -> Submission
 setTitle s submission =
     { submission | title = s }
@@ -51,6 +56,16 @@ setContentKind s submission =
     { submission | contentKind = s }
 
 
+pushComment : Comment -> Post -> Post
+pushComment c p =
+    case p.comments of
+        Just comments ->
+            { p | comments = Just (c :: comments) }
+
+        Nothing ->
+            { p | comments = Just [ c ] }
+
+
 fromSubmission : Posix -> Submission -> Post
 fromSubmission time sub =
     Post (posixToMillis time // 1000)
@@ -66,9 +81,15 @@ fromSubmission time sub =
         (postId time sub |> Hash.toString)
 
 
+commentFromSubmission : String -> Posix -> CommentSubmission -> Comment
+commentFromSubmission parent time sub =
+    Comment (posixToMillis time // 1000) sub.text parent
+
+
 type alias Comment =
     { timestamp : Int
     , text : String
+    , parent : String
     }
 
 
@@ -85,7 +106,7 @@ type MultimediaKind
 
 commentDecoder : Decoder Comment
 commentDecoder =
-    map2 Comment (field "timestamp" int) (field "text" string)
+    map3 Comment (field "timestamp" int) (field "text" string) (field "parent" string)
 
 
 multimediaDecoder : Decoder Multimedia
@@ -114,6 +135,11 @@ parseMultimediaKind s =
 postEncoder : Post -> JE.Value
 postEncoder p =
     JE.object [ ( "timestamp", JE.int p.timestamp ), ( "title", JE.string p.title ), ( "text", JE.string p.text ), ( "content", p.content |> M.map multimediaEncoder |> M.withDefault JE.null ), ( "comments", JE.null ), ( "id", JE.string p.id ) ]
+
+
+commentEncoder : Comment -> JE.Value
+commentEncoder c =
+    JE.object [ ( "timestamp", JE.int c.timestamp ), ( "text", JE.string c.text ), ( "parent", JE.string c.parent ) ]
 
 
 postId : Posix -> Submission -> Hash
@@ -240,9 +266,29 @@ descending a b =
             LT
 
 
+viewPost : Post -> Html Msg
+viewPost post =
+    div [ class "post" ] [ div [ class "postTitleLine" ] [ h1 [] [ text post.title ], viewTimestamp post.timestamp ], p [] [ text post.text ], viewMultimedia post.content, div [ class "postAction", onClick (SelectPost (Just post.id)) ] [ img [ src "/forum.svg" ] [], p [] [ text "Comments" ] ] ]
+
+
+viewComment : Comment -> Html Msg
+viewComment comment =
+    div [ class "comment" ] [ p [ class "commentTimestamp" ] [ viewTimestamp comment.timestamp ], p [ class "commentText" ] [ text comment.text ] ]
+
+
+viewPostComments : List Comment -> Html Msg
+viewPostComments comments =
+    div [ class "comments" ] (comments |> L.sortWith descending |> L.map viewComment)
+
+
+viewCommentArea : Html Msg
+viewCommentArea =
+    div [ class "commentInputArea" ] [ textarea [ class "commentInput", placeholder "Post a reply", onInput ChangeSubCommentText ] [], p [ onClick SubmitComment ] [ text "Submit" ] ]
+
+
 viewPosts : List Post -> Html Msg
 viewPosts posts =
-    div [] (posts |> L.sortWith descending |> L.map (\post -> div [ class "post" ] [ div [ class "postTitleLine" ] [ h1 [] [ text post.title ], viewTimestamp post.timestamp ], p [] [ text post.text ], viewMultimedia post.content, div [ class "postAction", onClick (SelectPost post.id) ] [ img [ src "/forum.svg" ] [], p [] [ text "Comments" ] ] ]))
+    div [] (posts |> L.sortWith descending |> L.map viewPost)
 
 
 viewSubmitPost : MultimediaKind -> Html Msg
@@ -272,5 +318,5 @@ viewSubmitPost activeKind =
                 ]
                 [ text "image" ]
             ]
-        , p [ onClick SubmitPost, class "submit" ] [ text "submit" ]
+        , p [ onClick SubmitPost, class "submit" ] [ text "Submit" ]
         ]

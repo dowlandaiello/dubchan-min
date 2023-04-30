@@ -12,7 +12,11 @@ const app = Elm.Main.init({
 app.ports.loadPost.subscribe((m) => {
   const post = gun.get('posts').get(m).once((post) => {
     if (post !== undefined) {
-      app.ports.postLoaded.send(post);
+      gun.get('posts').get(m).get('comments').map().once((comment, _) => {
+        app.ports.commentIn.send(comment);
+      });
+
+      app.ports.postLoaded.send({ ...post, comments: [] });
     }
   });
 });
@@ -38,6 +42,10 @@ gun.get('posts').map().once((post, _) => {
 app.ports.submitPost.subscribe((post) => {
   const inserted = gun.get(post.id).put(post);
   gun.get('posts').set(inserted);
+});
+
+app.ports.submitComment.subscribe((comment) => {
+  gun.get('posts').get(comment.parent).get('comments').set(comment);
 });
 
 window.gun = gun;

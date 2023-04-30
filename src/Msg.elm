@@ -7,7 +7,7 @@ import Url
 
 
 type Msg
-    = SelectPost String
+    = SelectPost (Maybe String)
     | ClickLink Browser.UrlRequest
     | ChangeUrl Url.Url
     | PostLoaded JD.Value
@@ -19,3 +19,6 @@ type Msg
     | SetSubContentVideo
     | SubmitPost
     | Tick Time.Posix
+    | ChangeSubCommentText String
+    | SubmitComment
+    | CommentAdded JD.Value

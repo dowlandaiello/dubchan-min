@@ -15,12 +15,11 @@ body {
   margin: 0;
 
   font-family: "Arial", "Helvetica", "sans-serif";
+  background-color: #09071C;
 }
 
 
 .feed {
-  background-color: #09071C;
-
   padding: 1em;
 }
 
@@ -172,12 +171,12 @@ body {
   position: sticky;
   top: 0;
   background-color: #09071C;
-  font-size: 2em;
+  font-size: 1.5em;
   z-index: 2;
 }
 
 .logo img {
-  width: 30%;
+  width: 8em;
 
   margin-right: 1.5em;
 }
@@ -188,4 +187,133 @@ body {
 
 .logo p {
   margin-top: 0;
+}
+
+.viewer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+
+  background-color: rgba(0, 0, 0, 0.5);
+
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: center;
+  align-items: center;
+
+  z-index: 3;
+}
+
+.viewerBody {
+  background-color: #110F25;
+  height: 100%;
+  width: 60%;
+
+  padding: 2em;
+  padding-top: 6em;
+}
+
+.navigation {
+  display: flex;
+
+  flex-flow: row nowrap;
+  justify-content: flex-start;
+  align-items: center;
+
+  margin-bottom: 1em;
+}
+
+.navigation img {
+  filter: invert(1);
+  width: 2em;
+
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.navigation img:hover {
+  opacity: 0.8;
+}
+
+.viewerBody .post {
+  padding: 0;
+  padding-bottom: 0.5em;
+  margin: 0;
+  border: 0;
+
+  margin-bottom: 3em;;
+  border-bottom: 1px solid #6358FF;
+  border-radius: 0px;
+}
+
+.viewerBody .postAction {
+  display: none;
+}
+
+.commentInputArea {
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.commentInputArea textarea {
+  background-color: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.6);
+
+  font-family: "Arial", "Helvetica", "sans-serif";
+  font-size: 1em;
+  width: 100%;
+}
+
+.commentInputArea p {
+  background-color: #6358FF;
+  font-weight: bold;
+  text-align: center;
+  border-radius: 5px;
+  padding-top: 0.5em;
+  padding-bottom: 0.5em;
+
+  color: white;
+
+  cursor: pointer;
+  transition: 0.3s;
+
+  padding-left: 0.5em;
+  padding-right: 0.5em;
+
+  margin-left: 1em;
+}
+
+.commentInputArea p:hover {
+  opacity: 0.8;
+}
+
+.comment {
+  color: white;
+}
+
+.comment>.commentTimestamp {
+  opacity: 0.5;
+}
+
+@media (max-width: 661px) {
+  .logo img {
+    width: 30%;
+  }
+
+  .logo {
+    font-size: 1em;
+  }
+}
+
+@media (min-width: 716px) {
+  .feed {
+    padding-left: 20%;
+    padding-right: 20%;
+  }
 }
