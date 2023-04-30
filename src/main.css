@@ -1,0 +1,191 @@
+/*
+  elm-hot creates an additional div wrapper around the app to make HMR possible.
+  This could break styling in development mode if you are using Elm UI.
+
+  More context in the issue:
+    https://github.com/halfzebra/create-elm-app/issues/320
+*/
+[data-elm-hot="true"] {
+  height: inherit;
+}
+
+body {
+  color: black;
+  padding: 0;
+  margin: 0;
+
+  font-family: "Arial", "Helvetica", "sans-serif";
+}
+
+
+.feed {
+  background-color: #09071C;
+
+  padding: 1em;
+}
+
+.post {
+  background-color: #110F25;
+  border-radius: 5px;
+  color: white;
+
+  padding: 0.75em;
+
+  margin-bottom: 1em;
+
+  border: 1px solid #6358FF;
+}
+
+.content {
+  width: 100%;
+
+  margin-top: 0.5em;
+}
+
+.post h1, .post p {
+  margin: 0;
+}
+
+.postTitleLine {
+  display: flex;
+
+  flex-flow: row nowrap;
+  justify-content: flex-start;
+  align-items: center;
+
+  margin-bottom: 0.5em;
+}
+
+.postTitleLine h1 {
+  margin-right: 0.5em;
+}
+
+.postTitleLine p {
+  opacity: 0.8;
+}
+
+.postAction {
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: center;
+  align-items: center;
+  opacity: 0.6;
+  margin-top: 0.5em;
+  font-weight: bold;
+
+  transition: 0.3s;
+  cursor: pointer;
+  color: #6358FF;
+}
+
+.postAction:hover {
+  opacity: 0.4;
+}
+
+.postAction img {
+  width: 1.5em;
+  margin-right: 0.5em;
+}
+
+.submitArea {
+  background-color: #1A1837;
+  border-radius: 5px;
+  color: white;
+
+  padding: 0.5em;
+
+  margin-bottom: 1em;
+
+  display: flex;
+
+  flex-flow: column nowrap;
+  border: 1px solid #6358FF;
+}
+
+.submitArea input, .submitArea textarea {
+  background-color: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.6);
+
+  font-family: "Arial", "Helvetica", "sans-serif";
+  font-size: 1em;
+
+  margin-bottom: 1em;
+}
+
+.mediaSelector {
+  display: flex;
+
+  flex-flow: row nowrap;
+  width: 100%;
+}
+
+.mediaSelector input {
+  flex-grow: 1;
+}
+
+.mediaSelector p {
+  margin-left: 0.5em;
+  opacity: 0.6;
+  transition: 0.3s;
+  cursor: pointer;
+}
+
+.mediaSelector p:hover {
+  opacity: 0.5;
+}
+
+.mediaSelector>p.active {
+  opacity: 1;
+  font-weight: bold;
+}
+
+.submit {
+  width: 100%;
+  background-color: #6358FF;
+  font-weight: bold;
+  text-align: center;
+  border-radius: 5px;
+  padding-top: 0.5em;
+  padding-bottom: 0.5em;
+
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.submit:hover {
+  opacity: 0.8;
+}
+
+.logo {
+  display: flex;
+
+  flex-flow: row nowrap;
+  justify-content: center;
+  align-items: flex-end;
+
+  margin-bottom: 3em;
+
+  color: white;
+  border-bottom: 1px solid #6358FF;
+  position: sticky;
+  top: 0;
+  background-color: #09071C;
+  font-size: 2em;
+  z-index: 2;
+}
+
+.logo img {
+  width: 30%;
+
+  margin-right: 1.5em;
+}
+
+.logo h1 {
+  margin-bottom: 0;
+}
+
+.logo p {
+  margin-top: 0;
+}

@@ -1,0 +1,194 @@
+module Post exposing (..)
+
+import Clock exposing (Time, getHours, getMinutes)
+import DateTime exposing (fromPosix, getDay, getMonth, getTime, getYear)
+import Html exposing (Html, div, h1, img, input, label, p, text, textarea, video)
+import Html.Attributes exposing (for, id, placeholder, src, title)
+import Html.Events exposing (onClick, onInput)
+import Json.Decode as JD exposing (Decoder, Error, field, int, list, map2, map4, map6, nullable, string)
+import List as L
+import Msg exposing (Msg(..))
+import String as S
+import Time exposing (Month(..), millisToPosix)
+
+
+type alias Post =
+    { timestamp : Int
+    , title : String
+    , text : String
+    , content : Maybe Multimedia
+    , comments : Maybe (List Comment)
+    , id : String
+    }
+
+
+type alias Submission =
+    { title : String
+    , text : String
+    , content : String
+    , contentKind : MultimediaKind
+    }
+
+
+setTitle : String -> Submission -> Submission
+setTitle s submission =
+    { submission | title = s }
+
+
+setText : String -> Submission -> Submission
+setText s submission =
+    { submission | text = s }
+
+
+setContent : String -> Submission -> Submission
+setContent s submission =
+    { submission | content = s }
+
+
+setContentKind : MultimediaKind -> Submission -> Submission
+setContentKind s submission =
+    { submission | contentKind = s }
+
+
+type alias Comment =
+    { timestamp : Int
+    , text : String
+    }
+
+
+type alias Multimedia =
+    { src : String
+    , kind : MultimediaKind
+    }
+
+
+type MultimediaKind
+    = Image
+    | Video
+
+
+commentDecoder : Decoder Comment
+commentDecoder =
+    map2 Comment (field "timestamp" int) (field "text" string)
+
+
+multimediaDecoder : Decoder Multimedia
+multimediaDecoder =
+    map2 Multimedia (field "src" string) (field "kind" multimediaKindDecoder)
+
+
+multimediaKindDecoder : Decoder MultimediaKind
+multimediaKindDecoder =
+    string |> JD.andThen parseMultimediaKind
+
+
+parseMultimediaKind : String -> Decoder MultimediaKind
+parseMultimediaKind s =
+    case s of
+        "image" ->
+            JD.succeed Image
+
+        "video" ->
+            JD.succeed Video
+
+        otherwise ->
+            JD.fail ("Invalid multimedia kind: " ++ s)
+
+
+postDecoder : Decoder Post
+postDecoder =
+    map6 Post (field "timestamp" int) (field "title" string) (field "text" string) (field "content" (nullable multimediaDecoder)) (field "comments" (nullable (list commentDecoder))) (field "id" string)
+
+
+showMonth : Month -> String
+showMonth m =
+    case m of
+        Jan ->
+            "Jan"
+
+        Feb ->
+            "Feb"
+
+        Mar ->
+            "Mar"
+
+        Apr ->
+            "Apr"
+
+        May ->
+            "May"
+
+        Jun ->
+            "Jun"
+
+        Jul ->
+            "July"
+
+        Aug ->
+            "Aug"
+
+        Sep ->
+            "Sept"
+
+        Oct ->
+            "Oct"
+
+        Nov ->
+            "Nov"
+
+        Dec ->
+            "Dec"
+
+
+showTime : Time -> String
+showTime t =
+    let
+        suffix =
+            if getHours t >= 12 then
+                "PM"
+
+            else
+                "AM"
+    in
+    (modBy 12 (getHours t) |> S.fromInt) ++ ":" ++ (getMinutes t |> S.fromInt) ++ " " ++ suffix
+
+
+viewTimestamp : Int -> Html Msg
+viewTimestamp t =
+    let
+        d =
+            t |> (*) 1000 |> millisToPosix |> fromPosix
+    in
+    p [] [ text ((d |> getMonth |> showMonth) ++ " " ++ (d |> getDay |> S.fromInt) ++ ", " ++ (d |> getYear |> S.fromInt) ++ " " ++ (d |> getTime |> showTime)) ]
+
+
+viewMultimedia : Maybe Multimedia -> Html Msg
+viewMultimedia m =
+    case m of
+        Just media ->
+            case media.kind of
+                Image ->
+                    img [ src media.src ] []
+
+                Video ->
+                    video [ src media.src ] []
+
+        Nothing ->
+            text ""
+
+
+viewPosts : List Post -> Html Msg
+viewPosts posts =
+    div [] (posts |> L.sortBy .timestamp |> L.map (\post -> div [] [ viewTimestamp post.timestamp, h1 [] [ text post.title ], p [] [ text post.text ], viewMultimedia post.content ]))
+
+
+viewSubmitPost : Html Msg
+viewSubmitPost =
+    div []
+        [ input [ id "titleInput", placeholder "Post Title", onInput ChangeSubTitle ] []
+        , textarea [ placeholder "Post Text", onInput ChangeSubText ] []
+        , input [ placeholder "Post Attachment", onInput ChangeSubContent ] []
+        , p [ onClick SetSubContentVideo ] [ text "video" ]
+        , p [ onClick SetSubContentImage ] [ text "image" ]
+        , p [ onClick SubmitPost ] [ text "submit" ]
+        ]
