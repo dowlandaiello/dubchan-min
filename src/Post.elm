@@ -60,7 +60,11 @@ pushComment : Comment -> Post -> Post
 pushComment c p =
     case p.comments of
         Just comments ->
-            { p | comments = Just (c :: comments) }
+            if L.member c comments then
+                p
+
+            else
+                { p | comments = Just (c :: comments) }
 
         Nothing ->
             { p | comments = Just [ c ] }
@@ -275,9 +279,23 @@ descending a b =
             LT
 
 
+viewTextLine : String -> Html Msg
+viewTextLine s =
+    if s |> S.startsWith ">" then
+        p [ class "greentext" ] [ text s ]
+
+    else
+        p [] [ text s ]
+
+
+viewPostText : Post -> Html Msg
+viewPostText p =
+    div [ class "postText" ] (p.text |> S.lines |> L.map viewTextLine)
+
+
 viewPost : Post -> Html Msg
 viewPost post =
-    div [ class "post" ] [ div [ class "postTitleLine" ] [ h1 [] [ text post.title ], viewTimestamp post.timestamp ], p [] [ text post.text ], viewMultimedia post.content, div [ class "postAction", onClick (SelectPost (Just post.id)) ] [ img [ src "/forum.svg" ] [], p [] [ text "Comments" ] ] ]
+    div [ class "post" ] [ div [ class "postTitleLine" ] [ h1 [] [ text post.title ], viewTimestamp post.timestamp ], viewPostText post, viewMultimedia post.content, div [ class "postAction", onClick (SelectPost (Just post.id)) ] [ img [ src "/forum.svg" ] [], p [] [ text "Comments" ] ] ]
 
 
 viewComment : Comment -> Html Msg

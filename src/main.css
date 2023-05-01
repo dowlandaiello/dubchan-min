@@ -35,6 +35,10 @@ body {
   border: 1px solid #6358FF;
 }
 
+.greentext {
+  color: #789922;
+}
+
 .content {
   width: 100%;
 
