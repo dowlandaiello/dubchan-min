@@ -12,18 +12,16 @@ const app = Elm.Main.init({
 app.ports.loadPost.subscribe((m) => {
   const post = gun.get('posts').get(m).once((post) => {
     if (post !== undefined) {
-      gun.get('posts').get(m).get('comments').map().once((comment, _) => {
-        app.ports.commentIn.send(comment);
-      });
-
       if (post.content === null) {
         app.ports.postLoaded.send({ ...post, comments: [] });
-
-        return;
+      } else {
+        gun.get(post.content).once((content) => {
+          app.ports.postLoaded.send({ ...post, comments: [], content: content });
+        });
       }
 
-      gun.get(post.content).once((content) => {
-        app.ports.postLoaded.send({ ...post, comments: [], content: content });
+      gun.get('posts').get(m).get('comments').map().once((comment, _) => {
+        app.ports.commentIn.send(comment);
       });
     }
   });
