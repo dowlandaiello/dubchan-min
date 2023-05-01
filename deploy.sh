@@ -1,4 +1,4 @@
 #!/usr/bin/env sh
-cd ../build
+cd build
 aws s3 cp . s3://dubchan.net/ --recursive
 

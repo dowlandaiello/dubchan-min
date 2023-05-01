@@ -288,19 +288,24 @@ viewTextLine s =
         p [] [ text s ]
 
 
-viewPostText : Post -> Html Msg
+viewPostText : String -> Html Msg
 viewPostText p =
-    div [ class "postText" ] (p.text |> S.lines |> L.map viewTextLine)
+    div [ class "postText" ] (p |> S.lines |> L.map viewTextLine)
+
+
+viewCommentText : String -> Html Msg
+viewCommentText c =
+    div [ class "commentText" ] (c |> S.lines |> L.map viewTextLine)
 
 
 viewPost : Post -> Html Msg
 viewPost post =
-    div [ class "post" ] [ div [ class "postTitleLine" ] [ h1 [] [ text post.title ], viewTimestamp post.timestamp ], viewPostText post, viewMultimedia post.content, div [ class "postAction", onClick (SelectPost (Just post.id)) ] [ img [ src "/forum.svg" ] [], p [] [ text "Comments" ] ] ]
+    div [ class "post" ] [ div [ class "postTitleLine" ] [ h1 [] [ text post.title ], viewTimestamp post.timestamp ], viewPostText post.text, viewMultimedia post.content, div [ class "postAction", onClick (SelectPost (Just post.id)) ] [ img [ src "/forum.svg" ] [], p [] [ text "Comments" ] ] ]
 
 
 viewComment : Comment -> Html Msg
 viewComment comment =
-    div [ class "comment" ] [ p [ class "commentTimestamp" ] [ viewTimestamp comment.timestamp ], p [ class "commentText" ] [ text comment.text ] ]
+    div [ class "comment" ] [ p [ class "commentTimestamp" ] [ viewTimestamp comment.timestamp ], viewCommentText comment.text ]
 
 
 viewPostComments : List Comment -> Html Msg
