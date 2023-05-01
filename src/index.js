@@ -3,7 +3,7 @@ import { Elm } from './Main.elm';
 import * as serviceWorker from './serviceWorker';
 import GUN from 'gun';
 
-const gun = GUN();
+const gun = GUN({peers: ["https://dubchan.herokuapp.com/gun"]});
 
 const app = Elm.Main.init({
   node: document.getElementById('root')
