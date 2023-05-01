@@ -1,8 +1,8 @@
 module Post exposing (..)
 
 import Hash exposing (Hash)
-import Html exposing (Html, div, h1, img, input, label, p, text, textarea, video)
-import Html.Attributes exposing (class, for, id, placeholder, src, title)
+import Html exposing (Html, div, h1, iframe, img, input, label, p, text, textarea, video)
+import Html.Attributes exposing (class, for, height, id, placeholder, src, title, width)
 import Html.Events exposing (onClick, onInput)
 import Json.Decode as JD exposing (Decoder, Error, field, int, list, map2, map3, map4, map6, nullable, string)
 import Json.Encode as JE
@@ -243,12 +243,16 @@ viewMultimedia : Maybe Multimedia -> Html Msg
 viewMultimedia m =
     case m of
         Just media ->
-            case media.kind of
-                Image ->
-                    img [ src media.src, class "content" ] []
+            if S.contains "youtube.com" media.src then
+                iframe [ src media.src, class "content", width 560, height 315 ] []
 
-                Video ->
-                    video [ src media.src, class "content" ] []
+            else
+                case media.kind of
+                    Image ->
+                        img [ src media.src, class "content" ] []
+
+                    Video ->
+                        video [ src media.src, class "content" ] []
 
         Nothing ->
             text ""
