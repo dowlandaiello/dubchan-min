@@ -239,12 +239,17 @@ viewTimestamp t =
     p [] [ text ((d |> toMonth z |> showMonth) ++ " " ++ (d |> toDay z |> S.fromInt) ++ ", " ++ (d |> toYear z |> S.fromInt) ++ " " ++ (d |> showTime)) ]
 
 
+getYtEmbed : String -> String
+getYtEmbed s =
+    S.split "v=" s |> L.drop 1 |> L.head |> M.withDefault "" |> (++) "https://www.youtube.com/embed/"
+
+
 viewMultimedia : Maybe Multimedia -> Html Msg
 viewMultimedia m =
     case m of
         Just media ->
             if S.contains "youtube.com" media.src then
-                iframe [ src media.src, class "content", width 560, height 315 ] []
+                iframe [ src (getYtEmbed media.src), class "content", width 560, height 315 ] []
 
             else
                 case media.kind of
