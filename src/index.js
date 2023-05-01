@@ -16,7 +16,15 @@ app.ports.loadPost.subscribe((m) => {
         app.ports.commentIn.send(comment);
       });
 
-      app.ports.postLoaded.send({ ...post, comments: [] });
+      if (post.content === null) {
+        app.ports.postLoaded.send({ ...post, comments: [] });
+
+        return;
+      }
+
+      gun.get(post.content).once((content) => {
+        app.ports.postLoaded.send({ ...post, comments: [], content: content });
+      });
     }
   });
 });

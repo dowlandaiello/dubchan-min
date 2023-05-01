@@ -212,7 +212,12 @@ body {
   width: 60%;
 
   padding: 2em;
-  padding-top: 6em;
+
+  overflow: scroll;
+}
+
+.viewerBody .comments {
+  margin-bottom: 1em;
 }
 
 .navigation {
@@ -223,6 +228,7 @@ body {
   align-items: center;
 
   margin-bottom: 1em;
+  margin-top: 1em;
 }
 
 .navigation img {

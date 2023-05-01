@@ -176,7 +176,7 @@ view model =
         let
             home =
                 [ div [ class "feed" ]
-                    [ div [ class "logo" ] [ img [ src "/logo.png" ] [], div [ class "logoText" ] [ h1 [] [ text "DubChan" ], p [] [ text "Free speech. Boundless." ] ] ]
+                    [ div [ class "logo" ] [ img [ src "/logo.png" ] [], div [ class "logoText" ] [ h1 [] [ text "DubChan" ], p [] [ text "Anonymous. Unmoderated." ] ] ]
                     , viewSubmitPost model.submission.contentKind
                     , viewPosts
                         model.feed
