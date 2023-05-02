@@ -76,8 +76,8 @@ youngestCommentFor s model =
     commentsFor s model |> M.map (L.sortWith descending) |> M.andThen L.head |> M.map (\comment -> comment.timestamp) |> M.withDefault 0
 
 
-sortComments model a b =
-    case compare (youngestCommentFor a.id model) (youngestCommentFor b.id model) of
+sortActivity model a b =
+    case compare (max (youngestCommentFor a.id model) a.timestamp) (max (youngestCommentFor b.id model) b.timestamp) of
         LT ->
             GT
 
@@ -90,7 +90,7 @@ sortComments model a b =
 
 viewPosts : Model -> Html Msg
 viewPosts model =
-    div [] (D.values model.feed |> L.sortWith (sortComments model) |> L.filter (\post -> post.title /= "") |> L.map (\post -> viewPost (commentsFor post.id model |> M.map L.length |> M.withDefault 0) post))
+    div [] (D.values model.feed |> L.sortWith (sortActivity model) |> L.filter (\post -> post.title /= "") |> L.map (\post -> viewPost (commentsFor post.id model |> M.map L.length |> M.withDefault 0) post))
 
 
 init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
