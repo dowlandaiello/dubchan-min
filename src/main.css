@@ -40,6 +40,11 @@ body {
 
 .feed {
   padding: 1em;
+  height: 100%;
+}
+
+.feed.hidden {
+  display: none;
 }
 
 .post {

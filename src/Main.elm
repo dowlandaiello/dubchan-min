@@ -234,7 +234,14 @@ view model =
     , body =
         let
             home =
-                [ div [ class "feed" ]
+                [ div
+                    (case model.viewing of
+                        Just _ ->
+                            [ class "feed", class "hidden" ]
+
+                        Nothing ->
+                            [ class "feed" ]
+                    )
                     [ div [ class "logo" ] [ img [ src "/logo.png" ] [], div [ class "logoText" ] [ h1 [] [ text "DubChan" ], p [] [ text "Anonymous. Unmoderated." ] ] ]
                     , viewSubmitPost model.submission.contentKind
                     , viewPosts
