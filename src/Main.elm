@@ -11,7 +11,7 @@ import Json.Encode as JE
 import List as L
 import Maybe as M
 import Msg exposing (Msg(..))
-import Post exposing (Comment, CommentSubmission, MultimediaKind(..), Post, Submission, commentDecoder, commentEncoder, commentFromSubmission, fromSubmission, postDecoder, postEncoder, pushComment, setContent, setContentKind, setText, setTitle, viewCommentArea, viewPost, viewPostComments, viewSubmitPost)
+import Post exposing (Comment, CommentSubmission, MultimediaKind(..), Post, Submission, commentDecoder, commentEncoder, commentFromSubmission, descending, fromSubmission, postDecoder, postEncoder, pushComment, setContent, setContentKind, setText, setTitle, viewCommentArea, viewPost, viewPostComments, viewSubmitPost)
 import Route exposing (..)
 import Time
 import Url
@@ -71,8 +71,13 @@ commentsFor s model =
     D.get s model.comments
 
 
-descending a b =
-    case compare a.timestamp b.timestamp of
+youngestCommentFor : String -> Model -> Int
+youngestCommentFor s model =
+    commentsFor s model |> M.map (L.sortWith descending) |> M.andThen L.head |> M.map (\comment -> comment.timestamp) |> M.withDefault 0
+
+
+sortComments model a b =
+    case compare (youngestCommentFor a.id model) (youngestCommentFor b.id model) of
         LT ->
             GT
 
@@ -85,7 +90,7 @@ descending a b =
 
 viewPosts : Model -> Html Msg
 viewPosts model =
-    div [] (D.values model.feed |> L.sortWith descending |> L.filter (\post -> post.title /= "") |> L.map (\post -> viewPost (commentsFor post.id model |> M.map L.length |> M.withDefault 0) post))
+    div [] (D.values model.feed |> L.sortWith (sortComments model) |> L.filter (\post -> post.title /= "") |> L.map (\post -> viewPost (commentsFor post.id model |> M.map L.length |> M.withDefault 0) post))
 
 
 init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
