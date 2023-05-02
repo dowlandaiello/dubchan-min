@@ -2,7 +2,7 @@ module Post exposing (..)
 
 import Hash exposing (Hash)
 import Html exposing (Html, div, h1, iframe, img, input, label, p, text, textarea, video)
-import Html.Attributes exposing (class, for, height, id, placeholder, src, title, width)
+import Html.Attributes exposing (class, for, height, id, placeholder, src, title, value, width)
 import Html.Events exposing (onClick, onInput)
 import Json.Decode as JD exposing (Decoder, Error, field, int, list, map2, map3, map4, map6, nullable, string)
 import Json.Encode as JE
@@ -338,17 +338,17 @@ viewCommentArea =
     div [ class "commentInputArea" ] [ textarea [ class "commentInput", placeholder "Post a reply", onInput ChangeSubCommentText ] [], p [ onClick SubmitComment ] [ text "Submit" ] ]
 
 
-viewSubmitPost : MultimediaKind -> Html Msg
-viewSubmitPost activeKind =
+viewSubmitPost : Submission -> Html Msg
+viewSubmitPost submission =
     div [ class "submitArea" ]
         [ h1 [] [ text "New Post" ]
-        , input [ id "titleInput", placeholder "Post Title", onInput ChangeSubTitle ] []
-        , textarea [ placeholder "Post Text", onInput ChangeSubText ] []
+        , input [ id "titleInput", placeholder "Post Title", onInput ChangeSubTitle, value submission.title ] []
+        , textarea [ placeholder "Post Text", onInput ChangeSubText, value submission.text ] []
         , div [ class "mediaSelector" ]
-            [ input [ placeholder "Post Attachment", onInput ChangeSubContent ] []
+            [ input [ placeholder "Post Attachment", onInput ChangeSubContent, value submission.content ] []
             , p
                 [ onClick SetSubContentVideo
-                , if activeKind == Video then
+                , if submission.contentKind == Video then
                     class "active"
 
                   else
@@ -357,7 +357,7 @@ viewSubmitPost activeKind =
                 [ text "video" ]
             , p
                 [ onClick SetSubContentImage
-                , if activeKind == Image then
+                , if submission.contentKind == Image then
                     class "active"
 
                   else

@@ -243,7 +243,7 @@ view model =
                             [ class "feed" ]
                     )
                     [ div [ class "logo" ] [ img [ src "/logo.png" ] [], div [ class "logoText" ] [ h1 [] [ text "DubChan" ], p [] [ text "Anonymous. Unmoderated." ] ] ]
-                    , viewSubmitPost model.submission.contentKind
+                    , viewSubmitPost model.submission
                     , viewPosts
                         model
                     ]

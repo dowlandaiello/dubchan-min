@@ -57,6 +57,11 @@ body {
   margin-bottom: 1em;
 
   border: 1px solid #6358FF;
+
+  display: flex;
+  flex-flow: column nowrap;
+  justify-content: center;
+  align-items: flex-start;
 }
 
 .greentext {
@@ -64,9 +69,11 @@ body {
 }
 
 .content {
-  width: 100%;
+  width: 70%;
 
-  margin-top: 0.5em;
+  margin-top: 1em;
+  align-self: center;
+  border-radius: 5px;
 }
 
 .post h1, .post p {
@@ -91,6 +98,13 @@ body {
   opacity: 0.8;
 }
 
+.postContent {
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: flex-start;
+  align-items: flex-start;
+}
+
 .postAction {
   display: flex;
   flex-flow: row nowrap;
@@ -103,6 +117,7 @@ body {
   transition: 0.3s;
   cursor: pointer;
   color: #6358FF;
+  align-self: center;
 }
 
 .postAction:hover {
@@ -337,6 +352,11 @@ body {
 
 .comment>.commentTimestamp {
   opacity: 0.5;
+  margin-bottom: 0.25em;
+}
+
+.commentTimestamp>p {
+  margin-bottom: 0;
 }
 
 @media (max-width: 661px) {
@@ -346,6 +366,10 @@ body {
 
   .logo {
     font-size: 1em;
+  }
+
+  .content {
+    width: 100%;
   }
 }
 
