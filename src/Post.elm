@@ -272,6 +272,9 @@ viewMultimedia m =
             if S.contains "youtube.com" media.src then
                 iframe [ src (getYtEmbed media.src), class "content", width 560, height 315 ] []
 
+            else if S.contains "rumble.com/embed" media.src then
+                iframe [ src media.src, class "content", width 560, height 315 ] []
+
             else
                 case media.kind of
                     Image ->
