@@ -315,9 +315,9 @@ viewCommentText c =
     div [ class "commentText" ] (c |> S.lines |> L.map viewTextLine)
 
 
-viewPost : Post -> Html Msg
-viewPost post =
-    div [ class "post" ] [ div [ class "postTitleLine" ] [ h1 [] [ text post.title ], viewTimestamp post.timestamp ], viewPostText post.text, viewMultimedia post.content, div [ class "postAction", onClick (SelectPost (Just post.id)) ] [ img [ src "/forum.svg" ] [], p [] [ text "Comments" ] ] ]
+viewPost : Int -> Post -> Html Msg
+viewPost nComments post =
+    div [ class "post" ] [ div [ class "postTitleLine" ] [ h1 [] [ text post.title ], viewTimestamp post.timestamp ], viewPostText post.text, viewMultimedia post.content, div [ class "postAction", onClick (SelectPost (Just post.id)) ] [ img [ src "/forum.svg" ] [], p [] [ text ("Comments " ++ "(" ++ (nComments |> S.fromInt) ++ ")") ] ] ]
 
 
 viewComment : Comment -> Html Msg
@@ -333,11 +333,6 @@ viewPostComments comments =
 viewCommentArea : Html Msg
 viewCommentArea =
     div [ class "commentInputArea" ] [ textarea [ class "commentInput", placeholder "Post a reply", onInput ChangeSubCommentText ] [], p [ onClick SubmitComment ] [ text "Submit" ] ]
-
-
-viewPosts : List Post -> Html Msg
-viewPosts posts =
-    div [] (posts |> L.sortWith descending |> L.filter (\post -> post.title /= "") |> L.map viewPost)
 
 
 viewSubmitPost : MultimediaKind -> Html Msg

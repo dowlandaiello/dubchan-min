@@ -8,9 +8,10 @@ import Html.Attributes exposing (class, src)
 import Html.Events exposing (onClick)
 import Json.Decode as JD
 import Json.Encode as JE
+import List as L
 import Maybe as M
 import Msg exposing (Msg(..))
-import Post exposing (Comment, CommentSubmission, MultimediaKind(..), Post, Submission, commentDecoder, commentEncoder, commentFromSubmission, fromSubmission, postDecoder, postEncoder, pushComment, setContent, setContentKind, setText, setTitle, viewCommentArea, viewPost, viewPostComments, viewPosts, viewSubmitPost)
+import Post exposing (Comment, CommentSubmission, MultimediaKind(..), Post, Submission, commentDecoder, commentEncoder, commentFromSubmission, fromSubmission, postDecoder, postEncoder, pushComment, setContent, setContentKind, setText, setTitle, viewCommentArea, viewPost, viewPostComments, viewSubmitPost)
 import Route exposing (..)
 import Time
 import Url
@@ -20,7 +21,7 @@ import Url.Parser exposing (parse)
 type alias Model =
     { key : Nav.Key
     , url : Url.Url
-    , feed : List Post
+    , feed : D.Dict String Post
     , comments : D.Dict String (List Comment)
     , viewing : Maybe Post
     , submission : Submission
@@ -46,24 +47,45 @@ setViewing p m =
 
 addComment : Comment -> Model -> Model
 addComment c m =
-    { m
-        | comments =
-            D.update c.parent
-                (\maybeComments ->
-                    case maybeComments of
-                        Just comments ->
-                            Just (c :: comments)
+    if c.text == "" then
+        m
 
-                        Nothing ->
-                            Just [ c ]
-                )
-                m.comments
-    }
+    else
+        { m
+            | comments =
+                D.update c.parent
+                    (\maybeComments ->
+                        case maybeComments of
+                            Just comments ->
+                                Just (c :: comments)
+
+                            Nothing ->
+                                Just [ c ]
+                    )
+                    m.comments
+        }
 
 
 commentsFor : String -> Model -> Maybe (List Comment)
 commentsFor s model =
     D.get s model.comments
+
+
+descending a b =
+    case compare a.timestamp b.timestamp of
+        LT ->
+            GT
+
+        EQ ->
+            EQ
+
+        GT ->
+            LT
+
+
+viewPosts : Model -> Html Msg
+viewPosts model =
+    div [] (D.values model.feed |> L.sortWith descending |> L.filter (\post -> post.title /= "") |> L.map (\post -> viewPost (commentsFor post.id model |> M.map L.length |> M.withDefault 0) post))
 
 
 init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
@@ -72,10 +94,10 @@ init flags url key =
         parse routeParser url
     of
         Just (Route.Post p) ->
-            update (SelectPost (Just p)) (Model key url [] (D.fromList []) Nothing (Submission "" "" "" Image) (CommentSubmission "") (Time.millisToPosix 0))
+            update (SelectPost (Just p)) (Model key url (D.fromList []) (D.fromList []) Nothing (Submission "" "" "" Image) (CommentSubmission "") (Time.millisToPosix 0))
 
         Nothing ->
-            ( Model key url [] (D.fromList []) Nothing (Submission "" "" "" Image) (CommentSubmission "") (Time.millisToPosix 0), Cmd.none )
+            ( Model key url (D.fromList []) (D.fromList []) Nothing (Submission "" "" "" Image) (CommentSubmission "") (Time.millisToPosix 0), Cmd.none )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -131,7 +153,7 @@ update msg model =
         PostAdded p ->
             case JD.decodeValue postDecoder p of
                 Ok post ->
-                    ( { model | feed = post :: model.feed }, Cmd.none )
+                    ( { model | feed = D.insert post.id post model.feed }, Cmd.none )
 
                 otherwise ->
                     ( model, Cmd.none )
@@ -211,13 +233,13 @@ view model =
                     [ div [ class "logo" ] [ img [ src "/logo.png" ] [], div [ class "logoText" ] [ h1 [] [ text "DubChan" ], p [] [ text "Anonymous. Unmoderated." ] ] ]
                     , viewSubmitPost model.submission.contentKind
                     , viewPosts
-                        model.feed
+                        model
                     ]
                 ]
         in
         case model.viewing of
             Just viewing ->
-                div [ class "viewer" ] [ div [ class "viewerBody" ] [ div [ class "navigation" ] [ img [ src "/back.svg", onClick (SelectPost Nothing) ] [] ], viewPost viewing, viewCommentArea, viewPostComments (M.withDefault [] viewing.comments) ] ] :: home
+                div [ class "viewer" ] [ div [ class "viewerBody" ] [ div [ class "navigation" ] [ img [ src "/back.svg", onClick (SelectPost Nothing) ] [] ], viewPost 0 viewing, viewCommentArea, viewPostComments (M.withDefault [] viewing.comments) ] ] :: home
 
             Nothing ->
                 home
