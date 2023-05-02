@@ -21,17 +21,6 @@ app.ports.loadPost.subscribe((m) => {
         } else {
           app.ports.postLoaded.send({ ...post, comments: [], content: post.content });
         }
-
-        gun.get('comments').get(m).map().once((comment, _) => {
-          gun.get('#').get(comment).once((commentStr) => {
-            try {
-              const comment = JSON.parse(commentStr);
-              app.ports.commentIn.send(comment);
-            } catch (e) {
-              console.error(e);
-            }
-          });
-        });
       } catch (e) {
         console.error(e);
       }
@@ -58,6 +47,17 @@ gun.get('posts').map().once((postId, _) => {
       }
     }
   });
+});
+
+gun.get('#').map().once((commentStr, _) => {
+  try {
+    const comment = JSON.parse(commentStr);
+    if (comment.parent !== undefined) {
+      app.ports.commentIn.send(comment);
+    }
+  } catch (e) {
+    console.error(e);
+  }
 });
 
 app.ports.submitPost.subscribe(async (post) => {

@@ -2,6 +2,7 @@ port module Main exposing (..)
 
 import Browser
 import Browser.Navigation as Nav
+import Dict as D
 import Html exposing (Html, div, h1, img, p, text)
 import Html.Attributes exposing (class, src)
 import Html.Events exposing (onClick)
@@ -9,7 +10,7 @@ import Json.Decode as JD
 import Json.Encode as JE
 import Maybe as M
 import Msg exposing (Msg(..))
-import Post exposing (CommentSubmission, MultimediaKind(..), Post, Submission, commentDecoder, commentEncoder, commentFromSubmission, fromSubmission, postDecoder, postEncoder, pushComment, setContent, setContentKind, setText, setTitle, viewCommentArea, viewPost, viewPostComments, viewPosts, viewSubmitPost)
+import Post exposing (Comment, CommentSubmission, MultimediaKind(..), Post, Submission, commentDecoder, commentEncoder, commentFromSubmission, fromSubmission, postDecoder, postEncoder, pushComment, setContent, setContentKind, setText, setTitle, viewCommentArea, viewPost, viewPostComments, viewPosts, viewSubmitPost)
 import Route exposing (..)
 import Time
 import Url
@@ -20,6 +21,7 @@ type alias Model =
     { key : Nav.Key
     , url : Url.Url
     , feed : List Post
+    , comments : D.Dict String (List Comment)
     , viewing : Maybe Post
     , submission : Submission
     , commentSubmission : CommentSubmission
@@ -42,16 +44,38 @@ setViewing p m =
     { m | viewing = Just p }
 
 
+addComment : Comment -> Model -> Model
+addComment c m =
+    { m
+        | comments =
+            D.update c.parent
+                (\maybeComments ->
+                    case maybeComments of
+                        Just comments ->
+                            Just (c :: comments)
+
+                        Nothing ->
+                            Just [ c ]
+                )
+                m.comments
+    }
+
+
+commentsFor : String -> Model -> Maybe (List Comment)
+commentsFor s model =
+    D.get s model.comments
+
+
 init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
 init flags url key =
     case
         parse routeParser url
     of
         Just (Route.Post p) ->
-            update (SelectPost (Just p)) (Model key url [] Nothing (Submission "" "" "" Image) (CommentSubmission "") (Time.millisToPosix 0))
+            update (SelectPost (Just p)) (Model key url [] (D.fromList []) Nothing (Submission "" "" "" Image) (CommentSubmission "") (Time.millisToPosix 0))
 
         Nothing ->
-            ( Model key url [] Nothing (Submission "" "" "" Image) (CommentSubmission "") (Time.millisToPosix 0), Cmd.none )
+            ( Model key url [] (D.fromList []) Nothing (Submission "" "" "" Image) (CommentSubmission "") (Time.millisToPosix 0), Cmd.none )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -95,7 +119,11 @@ update msg model =
         PostLoaded p ->
             case JD.decodeValue postDecoder p of
                 Ok post ->
-                    ( { model | viewing = Just post }, Cmd.none )
+                    let
+                        postWithC =
+                            { post | comments = D.get post.id model.comments }
+                    in
+                    ( { model | viewing = Just postWithC }, Cmd.none )
 
                 otherwise ->
                     ( model, Cmd.none )
@@ -140,12 +168,16 @@ update msg model =
         CommentAdded c ->
             case JD.decodeValue commentDecoder c of
                 Ok comment ->
-                    case model.viewing of
+                    let
+                        modelWithC =
+                            model |> addComment comment
+                    in
+                    case modelWithC.viewing of
                         Just viewing ->
-                            ( model |> setViewing (viewing |> pushComment comment), Cmd.none )
+                            ( modelWithC |> setViewing { viewing | comments = modelWithC |> commentsFor viewing.id }, Cmd.none )
 
                         Nothing ->
-                            ( model, Cmd.none )
+                            ( modelWithC, Cmd.none )
 
                 otherwise ->
                     ( model, Cmd.none )

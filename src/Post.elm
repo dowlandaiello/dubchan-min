@@ -337,7 +337,7 @@ viewCommentArea =
 
 viewPosts : List Post -> Html Msg
 viewPosts posts =
-    div [] (posts |> L.sortWith descending |> L.filter (\post -> post.text /= "") |> L.map viewPost)
+    div [] (posts |> L.sortWith descending |> L.filter (\post -> post.title /= "") |> L.map viewPost)
 
 
 viewSubmitPost : MultimediaKind -> Html Msg
