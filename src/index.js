@@ -28,32 +28,25 @@ app.ports.loadPost.subscribe((m) => {
   });
 });
 
-gun.get('posts').map().once((postId, _) => {
-  gun.get('#').get(postId).once((postStr) => {
-    if (postStr !== undefined) {
-      try {
-        const post = JSON.parse(postStr);
-        const sanitized = { timestamp: post.timestamp, title: post.title, text: post.text, id: postId, comments: null, content: null, nComments: 0 };
-
-        if (post.content !== null) {
-          const rich = { ...sanitized, content: post.content };
-
-          app.ports.postIn.send(rich);
-        } else {
-          app.ports.postIn.send(sanitized);
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    }
-  });
-});
-
-gun.get('#').map().once((commentStr, _) => {
+gun.get('#').map().once((str, id) => {
   try {
-    const comment = JSON.parse(commentStr);
-    if (comment.parent !== undefined) {
-      app.ports.commentIn.send(comment);
+    const json = JSON.parse(str);
+    if (json.parent !== undefined) {
+      app.ports.commentIn.send(json);
+    }
+
+    // This is a post
+    if (json.content !== undefined) {
+      const post = json;
+      const sanitized = { timestamp: post.timestamp, title: post.title, text: post.text, id: id, comments: null, content: null, nComments: 0 };
+
+      if (post.content !== null) {
+        const rich = { ...sanitized, content: post.content };
+
+        app.ports.postIn.send(rich);
+      } else {
+        app.ports.postIn.send(sanitized);
+      }
     }
   } catch (e) {
     console.error(e);
