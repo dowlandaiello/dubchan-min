@@ -227,7 +227,24 @@ showTime t =
             else
                 "AM"
     in
-    (modBy 12 (toHour z t) |> S.fromInt) ++ ":" ++ (toMinute z t |> S.fromInt) ++ " " ++ suffix
+    let
+        secs =
+            toMinute z t
+    in
+    let
+        secsVis =
+            secs |> S.fromInt
+    in
+    (modBy 12 (toHour z t) |> S.fromInt)
+        ++ ":"
+        ++ (if secs < 10 then
+                "0" ++ secsVis
+
+            else
+                secsVis
+           )
+        ++ " "
+        ++ suffix
 
 
 viewTimestamp : Int -> Html Msg
@@ -310,7 +327,7 @@ viewComment comment =
 
 viewPostComments : List Comment -> Html Msg
 viewPostComments comments =
-    div [ class "comments" ] (comments |> L.sortWith descending |> L.map viewComment)
+    div [ class "comments" ] (comments |> L.sortWith descending |> L.filter (\comment -> comment.text /= "") |> L.map viewComment)
 
 
 viewCommentArea : Html Msg
@@ -320,7 +337,7 @@ viewCommentArea =
 
 viewPosts : List Post -> Html Msg
 viewPosts posts =
-    div [] (posts |> L.sortWith descending |> L.map viewPost)
+    div [] (posts |> L.sortWith descending |> L.filter (\post -> post.text /= "") |> L.map viewPost)
 
 
 viewSubmitPost : MultimediaKind -> Html Msg

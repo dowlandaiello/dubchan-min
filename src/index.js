@@ -22,8 +22,6 @@ app.ports.loadPost.subscribe((m) => {
           app.ports.postLoaded.send({ ...post, comments: [], content: post.content });
         }
 
-        console.log(m);
-
         gun.get('comments').get(m).map().once((comment, _) => {
           gun.get('#').get(comment).once((commentStr) => {
             try {
