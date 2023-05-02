@@ -2,59 +2,84 @@ import './main.css';
 import { Elm } from './Main.elm';
 import * as serviceWorker from './serviceWorker';
 import GUN from 'gun';
+import SEA from 'gun/sea';
 
-const gun = GUN({peers: ["https://dubchan.herokuapp.com/gun"]});
+const gun = GUN({peers: ['https://dubchan.herokuapp.com/gun']});
 
 const app = Elm.Main.init({
   node: document.getElementById('root')
 });
 
 app.ports.loadPost.subscribe((m) => {
-  const post = gun.get('posts').get(m).once((post) => {
-    if (post !== undefined) {
-      if (post.content === null) {
-        app.ports.postLoaded.send({ ...post, comments: [] });
-      } else {
-        gun.get(post.content).once((content) => {
-          app.ports.postLoaded.send({ ...post, comments: [], content: content });
-        });
-      }
+  gun.get('#').get(m).once((postStr) => {
+    if (postStr !== undefined) {
+      try {
+        const post = { ...JSON.parse(postStr), id: m };
 
-      gun.get('posts').get(m).get('comments').map().once((comment, _) => {
-        app.ports.commentIn.send(comment);
-      });
+        if (post.content === null) {
+          app.ports.postLoaded.send({ ...post, comments: [] });
+        } else {
+          app.ports.postLoaded.send({ ...post, comments: [], content: post.content });
+        }
+
+        console.log(m);
+
+        gun.get('comments').get(m).map().once((comment, _) => {
+          gun.get('#').get(comment).once((commentStr) => {
+            try {
+              const comment = JSON.parse(commentStr);
+              app.ports.commentIn.send(comment);
+            } catch (e) {
+              console.error(e);
+            }
+          });
+        });
+      } catch (e) {
+        console.error(e);
+      }
     }
   });
 });
 
-gun.get('posts').map().once((post, _) => {
-  if (post !== undefined) {
-    const sanitized = { timestamp: post.timestamp, title: post.title, text: post.text, id: post.id, comments: null, content: null };
+gun.get('posts').map().once((postId, _) => {
+  gun.get('#').get(postId).once((postStr) => {
+    if (postStr !== undefined) {
+      try {
+        const post = JSON.parse(postStr);
+        const sanitized = { timestamp: post.timestamp, title: post.title, text: post.text, id: postId, comments: null, content: null };
 
-    if (post.content !== null) {
-      gun.get(post.content).once((content) => {
-        const rich = { ...sanitized, content: content };
+        if (post.content !== null) {
+          const rich = { ...sanitized, content: post.content };
 
-        app.ports.postIn.send(rich);
-      });
-
-      return;
+          app.ports.postIn.send(rich);
+        } else {
+          app.ports.postIn.send(sanitized);
+        }
+      } catch (e) {
+        console.error(e);
+      }
     }
-
-    app.ports.postIn.send(sanitized);
-  }
+  });
 });
 
-app.ports.submitPost.subscribe((post) => {
-  const inserted = gun.get(post.id).put(post);
-  gun.get('posts').set(inserted);
+app.ports.submitPost.subscribe(async (post) => {
+  const data = JSON.stringify(post);
+  const hash = await SEA.work(data, null, null, { name: "SHA-256" });
+
+  const inserted = gun.get('#').get(hash).put(data);
+  gun.get('posts').set(hash);
 });
 
-app.ports.submitComment.subscribe((comment) => {
-  gun.get('posts').get(comment.parent).get('comments').set(comment);
+app.ports.submitComment.subscribe(async (comment) => {
+  const data = JSON.stringify(comment);
+  const hash = await SEA.work(data, null, null, { name: "SHA-256" });
+
+  const inserted = gun.get('#').get(hash).put(data)
+  gun.get('comments').get(comment.parent).set(hash);
 });
 
 window.gun = gun;
+window.sea = SEA;
 
 // If you want your app to work offline and load faster, you can change
 // unregister() to register() below. Note this comes with some pitfalls.
