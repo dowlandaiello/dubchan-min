@@ -274,7 +274,7 @@ getYtEmbed s =
 
 getYtbeEmbed : String -> String
 getYtbeEmbed s =
-    S.split "/" s |> L.drop 1 |> L.head |> M.withDefault "" |> (++) "https://www.youtube.com/embed/"
+    S.split ".be/" s |> L.drop 1 |> L.head |> M.withDefault "" |> (++) "https://www.youtube.com/embed/"
 
 
 viewMultimedia : Maybe Multimedia -> Html Msg
