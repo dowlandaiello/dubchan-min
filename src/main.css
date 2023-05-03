@@ -129,6 +129,42 @@ body {
   margin-right: 0.5em;
 }
 
+.searchArea {
+  background-color: #1A1837;
+  border-radius: 5px;
+  color: white;
+
+  padding: 0.5em;
+
+  margin-bottom: 1em;
+
+  display: flex;
+
+  flex-flow: column nowrap;
+  border: 1px solid #6358FF;
+
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.searchArea img {
+  width: 1.5em;
+  filter: invert(1);
+  margin-right: 0.5em;
+  opacity: 0.6;
+}
+
+.searchArea input {
+  background-color: transparent;
+  font-size: 1em;
+  color: white;
+  outline: none;
+  border: none;
+  width: 100%;
+}
+
 .submitArea {
   background-color: #1A1837;
   border-radius: 5px;

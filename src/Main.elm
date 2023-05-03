@@ -3,9 +3,9 @@ port module Main exposing (..)
 import Browser
 import Browser.Navigation as Nav
 import Dict as D
-import Html exposing (Html, div, h1, img, p, text)
-import Html.Attributes exposing (class, src)
-import Html.Events exposing (onClick)
+import Html exposing (Html, div, h1, img, input, p, text)
+import Html.Attributes exposing (class, placeholder, src, value)
+import Html.Events exposing (onClick, onInput)
 import Json.Decode as JD
 import Json.Encode as JE
 import List as L
@@ -14,6 +14,7 @@ import Msg exposing (Msg(..))
 import Post exposing (Comment, CommentSubmission, MultimediaKind(..), Post, Submission, commentDecoder, commentEncoder, commentFromSubmission, descending, fromSubmission, postDecoder, postEncoder, pushComment, setContent, setContentKind, setText, setTitle, viewCommentArea, viewCommentText, viewPost, viewSubmitPost, viewTimestamp)
 import Route exposing (..)
 import Set as S
+import String
 import Time
 import Url
 import Url.Parser exposing (parse)
@@ -29,6 +30,7 @@ type alias Model =
     , submission : Submission
     , commentSubmission : CommentSubmission
     , time : Time.Posix
+    , searchQuery : String
     }
 
 
@@ -105,7 +107,20 @@ sortActivity model a b =
 
 viewPosts : Model -> Html Msg
 viewPosts model =
-    div [] (D.values model.feed |> L.sortWith (sortActivity model) |> L.filter (\post -> post.title /= "") |> L.map (\post -> viewPost (commentsFor post.id model |> M.map L.length |> M.withDefault 0) post))
+    div []
+        (D.values model.feed
+            |> L.sortWith (sortActivity model)
+            |> L.filter (\post -> post.title /= "")
+            |> L.filter
+                (\post ->
+                    let
+                        q =
+                            String.toLower model.searchQuery
+                    in
+                    String.contains q (String.toLower post.title) || String.contains q (String.toLower post.text)
+                )
+            |> L.map (\post -> viewPost (commentsFor post.id model |> M.map L.length |> M.withDefault 0) post)
+        )
 
 
 viewPostComments : Model -> Html Msg
@@ -169,16 +184,24 @@ viewComment model comment =
         div [ class "comment" ] commentContent
 
 
+viewSearch : String -> Html Msg
+viewSearch query =
+    div [ class "searchArea" ]
+        [ img [ src "/search.svg" ] []
+        , input [ placeholder "Search for something", value query, onInput ChangeSearchQuery ] []
+        ]
+
+
 init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
 init flags url key =
     case
         parse routeParser url
     of
         Just (Route.Post p) ->
-            update (SelectPost (Just p)) (Model key url (D.fromList []) (D.fromList []) Nothing S.empty (Submission "" "" "" Image) (CommentSubmission "" "") (Time.millisToPosix 0))
+            update (SelectPost (Just p)) (Model key url (D.fromList []) (D.fromList []) Nothing S.empty (Submission "" "" "" Image) (CommentSubmission "" "") (Time.millisToPosix 0) "")
 
         Nothing ->
-            ( Model key url (D.fromList []) (D.fromList []) Nothing S.empty (Submission "" "" "" Image) (CommentSubmission "" "") (Time.millisToPosix 0), Cmd.none )
+            ( Model key url (D.fromList []) (D.fromList []) Nothing S.empty (Submission "" "" "" Image) (CommentSubmission "" "") (Time.millisToPosix 0) "", Cmd.none )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -302,6 +325,9 @@ update msg model =
         ToggleHideChain parent ->
             ( model |> toggleHidden parent, Cmd.none )
 
+        ChangeSearchQuery q ->
+            ( { model | searchQuery = q }, Cmd.none )
+
 
 port loadPost : String -> Cmd msg
 
@@ -337,6 +363,7 @@ view model =
                     )
                     [ div [ class "logo" ] [ img [ src "/logo.png" ] [], div [ class "logoText" ] [ h1 [] [ text "DubChan" ], p [] [ text "Anonymous. Unmoderated." ] ] ]
                     , viewSubmitPost model.submission
+                    , viewSearch model.searchQuery
                     , viewPosts
                         model
                     ]

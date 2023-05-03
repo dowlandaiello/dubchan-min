@@ -25,3 +25,4 @@ type Msg
     | ChangeSubParent String
     | ClearSub
     | ToggleHideChain String
+    | ChangeSearchQuery String
