@@ -86,9 +86,9 @@ fromSubmission time sub =
         (postId time sub |> Hash.toString)
 
 
-commentFromSubmission : String -> Posix -> CommentSubmission -> Comment
-commentFromSubmission parent time sub =
-    Comment (posixToMillis time // 1000) sub.text parent (commentId sub |> Hash.toString)
+commentFromSubmission : Posix -> CommentSubmission -> Comment
+commentFromSubmission time sub =
+    Comment (posixToMillis time // 1000) sub.text sub.parent (commentId sub |> Hash.toString)
 
 
 type alias Comment =
@@ -338,14 +338,9 @@ viewPost nComments post =
     div [ class "post" ] [ div [ class "postTitleLine" ] [ h1 [] [ text post.title ], viewTimestamp post.timestamp ], viewPostText post.text, viewMultimedia post.content, div [ class "postAction", onClick (SelectPost (Just post.id)) ] [ img [ src "/forum.svg" ] [], p [] [ text ("Comments " ++ "(" ++ (nComments |> S.fromInt) ++ ")") ] ] ]
 
 
-viewComment : Comment -> Html Msg
-viewComment comment =
-    div [ class "comment" ] [ div [ class "commentActions" ] [ p [ class "commentTimestamp" ] [ viewTimestamp comment.timestamp ], img [ src "/reply.svg", onClick (ChangeSubParent comment.id) ] [] ], viewCommentText comment.text ]
-
-
-viewCommentArea : Html Msg
-viewCommentArea =
-    div [ class "commentInputArea" ] [ textarea [ class "commentInput", placeholder "Post a reply", onInput ChangeSubCommentText ] [], p [ onClick SubmitComment ] [ text "Submit" ] ]
+viewCommentArea : String -> Html Msg
+viewCommentArea existing =
+    div [ class "commentInputArea" ] [ textarea [ class "commentInput", placeholder "Post a reply", onInput ChangeSubCommentText, value existing ] [], img [ onClick ClearSub, class "cancel", src "/trash.svg" ] [], p [ onClick SubmitComment ] [ text "Submit" ] ]
 
 
 viewSubmitPost : Submission -> Html Msg

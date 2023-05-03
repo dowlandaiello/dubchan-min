@@ -338,6 +338,30 @@ body {
   margin-left: 1em;
 }
 
+.commentInputArea .cancel {
+  background-color: #eb4034;
+  font-weight: bold;
+  text-align: center;
+  border-radius: 5px;
+  padding-top: 0.5em;
+  padding-bottom: 0.5em;
+
+  color: white;
+
+  cursor: pointer;
+  transition: 0.3s;
+
+  padding-left: 0.5em;
+  padding-right: 0.5em;
+
+  margin-left: 1em;
+  width: 1em;
+}
+
+.commentInputArea .cancel:hover {
+  opacity: 0.8;
+}
+
 .commentInputArea p:hover {
   opacity: 0.8;
 }
@@ -346,6 +370,33 @@ body {
   color: white;
 
   margin-top: 1.75em;
+}
+
+.subcomments {
+  margin-left: 0.75em;
+}
+
+.subcommentsArea {
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: flex-start;
+  align-items: stretch;
+}
+
+.subcommentsArea {
+  margin-top: 1em;
+}
+
+.subcomments>*:first-child {
+  margin-top: 0;
+}
+
+.commentMarker {
+  width: 1px;
+  border-left: 1px solid rgba(255, 255, 2555, 0.5);
+  min-height: calc(100% - 1.75em);
+  cursor: pointer;
+  min-height: 2em;
 }
 
 .commentText p {

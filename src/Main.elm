@@ -11,8 +11,9 @@ import Json.Encode as JE
 import List as L
 import Maybe as M
 import Msg exposing (Msg(..))
-import Post exposing (Comment, CommentSubmission, MultimediaKind(..), Post, Submission, commentDecoder, commentEncoder, commentFromSubmission, descending, fromSubmission, postDecoder, postEncoder, pushComment, setContent, setContentKind, setText, setTitle, viewComment, viewCommentArea, viewPost, viewSubmitPost)
+import Post exposing (Comment, CommentSubmission, MultimediaKind(..), Post, Submission, commentDecoder, commentEncoder, commentFromSubmission, descending, fromSubmission, postDecoder, postEncoder, pushComment, setContent, setContentKind, setText, setTitle, viewCommentArea, viewCommentText, viewPost, viewSubmitPost, viewTimestamp)
 import Route exposing (..)
+import Set as S
 import Time
 import Url
 import Url.Parser exposing (parse)
@@ -24,6 +25,7 @@ type alias Model =
     , feed : D.Dict String Post
     , comments : D.Dict String (List Comment)
     , viewing : Maybe Post
+    , hidden : S.Set String
     , submission : Submission
     , commentSubmission : CommentSubmission
     , time : Time.Posix
@@ -66,6 +68,19 @@ addComment c m =
         }
 
 
+toggleHidden : String -> Model -> Model
+toggleHidden parent m =
+    let
+        hidden =
+            m.hidden
+    in
+    if S.member parent m.hidden then
+        { m | hidden = S.remove parent m.hidden }
+
+    else
+        { m | hidden = S.insert parent m.hidden }
+
+
 commentsFor : String -> Model -> Maybe (List Comment)
 commentsFor s model =
     D.get s model.comments
@@ -99,7 +114,59 @@ viewPostComments model =
         comments =
             M.withDefault [] (M.andThen .comments model.viewing)
     in
-    div [ class "comments" ] (comments |> L.sortWith descending |> L.filter (\comment -> comment.text /= "") |> L.map viewComment)
+    div [ class "comments" ] (comments |> L.sortWith descending |> L.filter (\comment -> comment.text /= "") |> L.map (\comment -> viewComment model comment))
+
+
+viewComment : Model -> Comment -> Html Msg
+viewComment model comment =
+    let
+        commentInput =
+            model.commentSubmission.text
+    in
+    let
+        replying =
+            model.commentSubmission.parent == comment.id
+    in
+    let
+        children =
+            M.withDefault [] (commentsFor comment.id model) |> L.map (viewComment model)
+    in
+    let
+        commentContent =
+            [ div [ class "commentActions" ]
+                [ p [ class "commentTimestamp" ] [ viewTimestamp comment.timestamp ]
+                , img
+                    [ src "/reply.svg"
+                    , onClick
+                        (if replying then
+                            ChangeSubParent comment.parent
+
+                         else
+                            ChangeSubParent comment.id
+                        )
+                    ]
+                    []
+                ]
+            , viewCommentText comment.text
+            , if L.length children > 0 then
+                div [ class "subcommentsArea" ]
+                    [ div [ class "commentMarker", onClick (ToggleHideChain comment.id) ] []
+                    , if S.member comment.id model.hidden then
+                        text ""
+
+                      else
+                        div [ class "subcomments" ] children
+                    ]
+
+              else
+                text ""
+            ]
+    in
+    if replying then
+        div [ class "comment" ] (commentContent ++ [ viewCommentArea commentInput ])
+
+    else
+        div [ class "comment" ] commentContent
 
 
 init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
@@ -108,10 +175,10 @@ init flags url key =
         parse routeParser url
     of
         Just (Route.Post p) ->
-            update (SelectPost (Just p)) (Model key url (D.fromList []) (D.fromList []) Nothing (Submission "" "" "" Image) (CommentSubmission "" "") (Time.millisToPosix 0))
+            update (SelectPost (Just p)) (Model key url (D.fromList []) (D.fromList []) Nothing S.empty (Submission "" "" "" Image) (CommentSubmission "" "") (Time.millisToPosix 0))
 
         Nothing ->
-            ( Model key url (D.fromList []) (D.fromList []) Nothing (Submission "" "" "" Image) (CommentSubmission "" "") (Time.millisToPosix 0), Cmd.none )
+            ( Model key url (D.fromList []) (D.fromList []) Nothing S.empty (Submission "" "" "" Image) (CommentSubmission "" "") (Time.millisToPosix 0), Cmd.none )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -147,7 +214,7 @@ update msg model =
         SelectPost p ->
             case p of
                 Just post ->
-                    ( model, loadPost post )
+                    ( { model | commentSubmission = { text = "", parent = post } }, loadPost post )
 
                 Nothing ->
                     ( { model | viewing = Nothing }, Cmd.none )
@@ -200,7 +267,7 @@ update msg model =
         SubmitComment ->
             case model.viewing of
                 Just viewing ->
-                    ( model |> setCommentSubmission (CommentSubmission "" ""), model.commentSubmission |> commentFromSubmission viewing.id model.time |> commentEncoder |> submitComment )
+                    ( model |> setCommentSubmission (CommentSubmission "" ""), model.commentSubmission |> commentFromSubmission model.time |> commentEncoder |> submitComment )
 
                 Nothing ->
                     ( model |> setCommentSubmission (CommentSubmission "" ""), Cmd.none )
@@ -228,6 +295,12 @@ update msg model =
                     model.commentSubmission
             in
             ( model |> setCommentSubmission { sub | parent = id }, Cmd.none )
+
+        ClearSub ->
+            ( model |> setCommentSubmission { text = "", parent = "" }, Cmd.none )
+
+        ToggleHideChain parent ->
+            ( model |> toggleHidden parent, Cmd.none )
 
 
 port loadPost : String -> Cmd msg
@@ -271,7 +344,19 @@ view model =
         in
         case model.viewing of
             Just viewing ->
-                div [ class "viewer" ] [ div [ class "viewerBody" ] [ div [ class "navigation" ] [ img [ src "/back.svg", onClick (SelectPost Nothing) ] [] ], viewPost 0 viewing, viewCommentArea, viewPostComments model ] ] :: home
+                div [ class "viewer" ]
+                    [ div [ class "viewerBody" ]
+                        [ div [ class "navigation" ] [ img [ src "/back.svg", onClick (SelectPost Nothing) ] [] ]
+                        , viewPost 0 viewing
+                        , if model.commentSubmission.parent /= viewing.id && model.commentSubmission.parent /= "" then
+                            text ""
+
+                          else
+                            viewCommentArea model.commentSubmission.text
+                        , viewPostComments model
+                        ]
+                    ]
+                    :: home
 
             Nothing ->
                 home

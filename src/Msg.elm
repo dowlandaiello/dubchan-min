@@ -23,3 +23,5 @@ type Msg
     | SubmitComment
     | CommentAdded JD.Value
     | ChangeSubParent String
+    | ClearSub
+    | ToggleHideChain String
