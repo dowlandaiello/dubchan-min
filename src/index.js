@@ -32,7 +32,7 @@ gun.get('#').map().once((str, id) => {
   try {
     const json = JSON.parse(str);
     if (json.parent !== undefined) {
-      app.ports.commentIn.send(json);
+      app.ports.commentIn.send({ ...json, id: id });
     }
 
     // This is a post

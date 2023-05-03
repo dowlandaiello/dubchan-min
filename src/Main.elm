@@ -11,7 +11,7 @@ import Json.Encode as JE
 import List as L
 import Maybe as M
 import Msg exposing (Msg(..))
-import Post exposing (Comment, CommentSubmission, MultimediaKind(..), Post, Submission, commentDecoder, commentEncoder, commentFromSubmission, descending, fromSubmission, postDecoder, postEncoder, pushComment, setContent, setContentKind, setText, setTitle, viewCommentArea, viewPost, viewPostComments, viewSubmitPost)
+import Post exposing (Comment, CommentSubmission, MultimediaKind(..), Post, Submission, commentDecoder, commentEncoder, commentFromSubmission, descending, fromSubmission, postDecoder, postEncoder, pushComment, setContent, setContentKind, setText, setTitle, viewComment, viewCommentArea, viewPost, viewSubmitPost)
 import Route exposing (..)
 import Time
 import Url
@@ -93,16 +93,25 @@ viewPosts model =
     div [] (D.values model.feed |> L.sortWith (sortActivity model) |> L.filter (\post -> post.title /= "") |> L.map (\post -> viewPost (commentsFor post.id model |> M.map L.length |> M.withDefault 0) post))
 
 
+viewPostComments : Model -> Html Msg
+viewPostComments model =
+    let
+        comments =
+            M.withDefault [] (M.andThen .comments model.viewing)
+    in
+    div [ class "comments" ] (comments |> L.sortWith descending |> L.filter (\comment -> comment.text /= "") |> L.map viewComment)
+
+
 init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
 init flags url key =
     case
         parse routeParser url
     of
         Just (Route.Post p) ->
-            update (SelectPost (Just p)) (Model key url (D.fromList []) (D.fromList []) Nothing (Submission "" "" "" Image) (CommentSubmission "") (Time.millisToPosix 0))
+            update (SelectPost (Just p)) (Model key url (D.fromList []) (D.fromList []) Nothing (Submission "" "" "" Image) (CommentSubmission "" "") (Time.millisToPosix 0))
 
         Nothing ->
-            ( Model key url (D.fromList []) (D.fromList []) Nothing (Submission "" "" "" Image) (CommentSubmission "") (Time.millisToPosix 0), Cmd.none )
+            ( Model key url (D.fromList []) (D.fromList []) Nothing (Submission "" "" "" Image) (CommentSubmission "" "") (Time.millisToPosix 0), Cmd.none )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -182,15 +191,19 @@ update msg model =
             ( model |> setSubmission (Submission "" "" "" Image), model.submission |> fromSubmission model.time |> postEncoder |> submitPost )
 
         ChangeSubCommentText s ->
-            ( model |> setCommentSubmission (CommentSubmission s), Cmd.none )
+            let
+                sub =
+                    model.commentSubmission
+            in
+            ( model |> setCommentSubmission { sub | text = s }, Cmd.none )
 
         SubmitComment ->
             case model.viewing of
                 Just viewing ->
-                    ( model |> setCommentSubmission (CommentSubmission ""), model.commentSubmission |> commentFromSubmission viewing.id model.time |> commentEncoder |> submitComment )
+                    ( model |> setCommentSubmission (CommentSubmission "" ""), model.commentSubmission |> commentFromSubmission viewing.id model.time |> commentEncoder |> submitComment )
 
                 Nothing ->
-                    ( model |> setCommentSubmission (CommentSubmission ""), Cmd.none )
+                    ( model |> setCommentSubmission (CommentSubmission "" ""), Cmd.none )
 
         CommentAdded c ->
             case JD.decodeValue commentDecoder c of
@@ -208,6 +221,13 @@ update msg model =
 
                 otherwise ->
                     ( model, Cmd.none )
+
+        ChangeSubParent id ->
+            let
+                sub =
+                    model.commentSubmission
+            in
+            ( model |> setCommentSubmission { sub | parent = id }, Cmd.none )
 
 
 port loadPost : String -> Cmd msg
@@ -251,7 +271,7 @@ view model =
         in
         case model.viewing of
             Just viewing ->
-                div [ class "viewer" ] [ div [ class "viewerBody" ] [ div [ class "navigation" ] [ img [ src "/back.svg", onClick (SelectPost Nothing) ] [] ], viewPost 0 viewing, viewCommentArea, viewPostComments (M.withDefault [] viewing.comments) ] ] :: home
+                div [ class "viewer" ] [ div [ class "viewerBody" ] [ div [ class "navigation" ] [ img [ src "/back.svg", onClick (SelectPost Nothing) ] [] ], viewPost 0 viewing, viewCommentArea, viewPostComments model ] ] :: home
 
             Nothing ->
                 home

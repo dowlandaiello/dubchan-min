@@ -22,3 +22,4 @@ type Msg
     | ChangeSubCommentText String
     | SubmitComment
     | CommentAdded JD.Value
+    | ChangeSubParent String

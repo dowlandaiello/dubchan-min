@@ -33,6 +33,7 @@ type alias Submission =
 
 type alias CommentSubmission =
     { text : String
+    , parent : String
     }
 
 
@@ -87,13 +88,14 @@ fromSubmission time sub =
 
 commentFromSubmission : String -> Posix -> CommentSubmission -> Comment
 commentFromSubmission parent time sub =
-    Comment (posixToMillis time // 1000) sub.text parent
+    Comment (posixToMillis time // 1000) sub.text parent (commentId sub |> Hash.toString)
 
 
 type alias Comment =
     { timestamp : Int
     , text : String
     , parent : String
+    , id : String
     }
 
 
@@ -110,7 +112,7 @@ type MultimediaKind
 
 commentDecoder : Decoder Comment
 commentDecoder =
-    map3 Comment (field "timestamp" int) (field "text" string) (field "parent" string)
+    map4 Comment (field "timestamp" int) (field "text" string) (field "parent" string) (field "id" string)
 
 
 multimediaDecoder : Decoder Multimedia
@@ -143,12 +145,17 @@ postEncoder p =
 
 commentEncoder : Comment -> JE.Value
 commentEncoder c =
-    JE.object [ ( "timestamp", JE.int c.timestamp ), ( "text", JE.string c.text ), ( "parent", JE.string c.parent ) ]
+    JE.object [ ( "timestamp", JE.int c.timestamp ), ( "text", JE.string c.text ), ( "parent", JE.string c.parent ), ( "id", JE.string c.id ) ]
 
 
 postId : Posix -> Submission -> Hash
 postId t sub =
     Hash.dependent (Hash.fromString sub.title) (Hash.fromString sub.text) |> Hash.dependent (Hash.fromInt (t |> posixToMillis))
+
+
+commentId : CommentSubmission -> Hash
+commentId sub =
+    Hash.dependent (Hash.fromString sub.text) (Hash.fromString sub.parent)
 
 
 multimediaEncoder : Multimedia -> JE.Value
@@ -265,12 +272,20 @@ getYtEmbed s =
     S.split "v=" s |> L.drop 1 |> L.head |> M.withDefault "" |> (++) "https://www.youtube.com/embed/"
 
 
+getYtbeEmbed : String -> String
+getYtbeEmbed s =
+    S.split "/" s |> L.drop 1 |> L.head |> M.withDefault "" |> (++) "https://www.youtube.com/embed/"
+
+
 viewMultimedia : Maybe Multimedia -> Html Msg
 viewMultimedia m =
     case m of
         Just media ->
             if S.contains "youtube.com" media.src then
                 iframe [ src (getYtEmbed media.src), class "content", width 560, height 315 ] []
+
+            else if S.contains "youtu.be" media.src then
+                iframe [ src (getYtbeEmbed media.src), class "content", width 560, height 315 ] []
 
             else if S.contains "rumble.com/embed" media.src then
                 iframe [ src media.src, class "content", width 560, height 315 ] []
@@ -325,12 +340,7 @@ viewPost nComments post =
 
 viewComment : Comment -> Html Msg
 viewComment comment =
-    div [ class "comment" ] [ p [ class "commentTimestamp" ] [ viewTimestamp comment.timestamp ], viewCommentText comment.text ]
-
-
-viewPostComments : List Comment -> Html Msg
-viewPostComments comments =
-    div [ class "comments" ] (comments |> L.sortWith descending |> L.filter (\comment -> comment.text /= "") |> L.map viewComment)
+    div [ class "comment" ] [ div [ class "commentActions" ] [ p [ class "commentTimestamp" ] [ viewTimestamp comment.timestamp ], img [ src "/reply.svg", onClick (ChangeSubParent comment.id) ] [] ], viewCommentText comment.text ]
 
 
 viewCommentArea : Html Msg

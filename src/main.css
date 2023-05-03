@@ -44,7 +44,7 @@ body {
 }
 
 .feed.hidden {
-  display: none;
+  height: 0;
 }
 
 .post {
@@ -344,19 +344,38 @@ body {
 
 .comment {
   color: white;
+
+  margin-top: 1.75em;
 }
 
 .commentText p {
   margin: 0;
 }
 
-.comment>.commentTimestamp {
+.commentActions {
   opacity: 0.5;
   margin-bottom: 0.25em;
+  display: flex;
+
+  flex-flow: row nowrap;
+  justify-content: flex-start;
+  align-items: center;
 }
 
-.commentTimestamp>p {
-  margin-bottom: 0;
+.commentActions img {
+  filter: invert(1);
+  width: 1.5em;
+  margin-left: 0.5em;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.commentActions img:hover {
+  opacity: 0.5;
+}
+
+.commentTimestamp, .commentTimestamp>p {
+  margin: 0;
 }
 
 @media (max-width: 661px) {
