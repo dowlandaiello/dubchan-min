@@ -375,17 +375,26 @@ view model =
                 [ div
                     (case model.viewing of
                         Just _ ->
-                            [ class "feed", class "hidden" ]
+                            [ class "feedContainer", class "hidden" ]
 
                         Nothing ->
-                            [ class "feed" ]
+                            [ class "feedContainer" ]
                     )
-                    [ div [ class "logo" ] [ img [ src "/logo.png" ] [], div [ class "logoText" ] [ h1 [] [ text "DubChan" ], p [] [ text "Anonymous. Unmoderated." ] ] ]
-                    , viewQuickLinks
-                    , viewSubmitPost model.submission
-                    , viewSearch model.searchQuery
-                    , viewPosts
-                        model
+                    [ div
+                        (case model.viewing of
+                            Just _ ->
+                                [ class "feed", class "hidden" ]
+
+                            Nothing ->
+                                [ class "feed" ]
+                        )
+                        [ div [ class "logo" ] [ img [ src "/logo.png" ] [], div [ class "logoText" ] [ h1 [] [ text "DubChan" ], p [] [ text "Anonymous. Unmoderated." ] ] ]
+                        , viewQuickLinks
+                        , viewSubmitPost model.submission
+                        , viewSearch model.searchQuery
+                        , viewPosts
+                            model
+                        ]
                     ]
                 ]
         in
