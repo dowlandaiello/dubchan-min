@@ -176,6 +176,11 @@ viewComment model comment =
                     []
                 ]
             , viewCommentText comment.text
+            , if replying then
+                viewCommentArea commentInput
+
+              else
+                text ""
             , if L.length children > 0 then
                 div [ class "subcommentsArea" ]
                     [ div [ class "commentMarker", onClick (ToggleHideChain comment.id) ] []
@@ -190,11 +195,7 @@ viewComment model comment =
                 text ""
             ]
     in
-    if replying then
-        div [ class "comment" ] (commentContent ++ [ viewCommentArea commentInput ])
-
-    else
-        div [ class "comment" ] commentContent
+    div [ class "comment" ] commentContent
 
 
 viewSearch : String -> Html Msg
