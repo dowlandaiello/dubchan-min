@@ -89,7 +89,7 @@ toggleHidden parent m =
 
 commentsFor : String -> Model -> Maybe (List Comment)
 commentsFor s model =
-    D.get s model.comments
+    D.get s model.comments |> M.map (L.sortWith descending)
 
 
 allCommentsFor : String -> Model -> Maybe (List Comment)

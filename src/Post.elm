@@ -364,7 +364,7 @@ viewPost nComments verified post =
 
 viewCommentArea : String -> Html Msg
 viewCommentArea existing =
-    div [ class "commentInputArea" ] [ textarea [ class "commentInput", placeholder "Post a reply", onInput ChangeSubCommentText, value existing ] [], img [ onClick ClearSub, class "cancel", src "/trash.svg" ] [], p [ onClick SubmitComment ] [ text "Submit" ] ]
+    div [ class "commentInputArea" ] [ textarea [ class "commentInput", placeholder "Post a reply", onInput ChangeSubCommentText, value existing ] [], div [ class "commentInputActions" ] [ img [ onClick ClearSub, class "cancel", src "/trash.svg" ] [], p [ onClick SubmitComment ] [ text "Submit" ] ] ]
 
 
 viewSubmitPost : Submission -> Html Msg

@@ -438,6 +438,13 @@ body {
   opacity: 0.8;
 }
 
+.commentInputActions {
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: center;
+  align-items: center;
+}
+
 .comment {
   color: white;
 
@@ -453,6 +460,7 @@ body {
   padding-left: 0.75em;
   padding-top: 0.25em;
   padding-bottom: 0.25em;
+  padding-right: 0.5em;
 }
 
 .subcomments {
@@ -526,6 +534,30 @@ body {
   }
 
   .content {
+    width: 100%;
+  }
+}
+
+@media (max-width: 716px) {
+  .viewerBody {
+    width: 100%;
+  }
+
+  .commentInputArea {
+    flex-flow: column nowrap;
+    margin-top: 0.5em;
+
+  }
+
+  .commentInputActions>*:first-child {
+    margin-left: 0;
+  }
+
+  .commentInputActions>*:last-child {
+    width: 100%;
+  }
+
+  .commentInputActions {
     width: 100%;
   }
 }
