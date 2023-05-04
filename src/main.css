@@ -377,10 +377,22 @@ body {
   display: flex;
   flex-flow: row nowrap;
   justify-content: space-between;
+  align-items: flex-end;
+}
+
+.commentInputs {
+  width: 100%;
+  margin-right: 0.5em;
+}
+
+.commentContentInput {
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: space-between;
   align-items: center;
 }
 
-.commentInputArea textarea {
+.commentInputArea textarea, .commentInputArea input {
   background-color: transparent;
   border: none;
   border-bottom: 1px solid rgba(255, 255, 255, 0.6);
@@ -408,6 +420,23 @@ body {
   padding-right: 0.5em;
 
   margin-left: 1em;
+}
+
+.commentContentInput {
+  margin-top: 1.5em;
+}
+
+.commentContentInput p {
+  background-color: transparent;
+  padding: 0;
+  color: white;
+  margin: 0;
+  margin-left: 0.5em;
+  font-weight: normal;
+}
+
+.commentContentInput p.active {
+  font-weight: bold;
 }
 
 .commentInputArea .cancel {
@@ -445,6 +474,10 @@ body {
   align-items: center;
 }
 
+.commentInputActions>* {
+  margin: 0;
+}
+
 .comment {
   color: white;
 
@@ -461,6 +494,25 @@ body {
   padding-top: 0.25em;
   padding-bottom: 0.25em;
   padding-right: 0.5em;
+}
+
+.commentBody .commentInputArea {
+  margin-top: 1em;
+  margin-bottom: 1em;
+  margin-right: 0.5em;
+}
+
+.commentBody .commentContent {
+  display: flex;
+  flex-flow: column nowrap;
+  justify-content: flex-start;
+  align-items: flex-start;
+}
+
+.commentBody .content {
+  width: 60%;
+  margin: 0;
+  margin-right: 0.5em;
 }
 
 .subcomments {

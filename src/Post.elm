@@ -4,11 +4,12 @@ import Hash exposing (Hash)
 import Html exposing (Html, div, h1, iframe, img, input, label, p, text, textarea, video)
 import Html.Attributes exposing (class, for, height, id, placeholder, src, title, value, width)
 import Html.Events exposing (onClick, onInput)
-import Json.Decode as JD exposing (Decoder, Error, field, int, list, map2, map3, map4, map6, nullable, string)
+import Json.Decode as JD exposing (Decoder, Error, field, int, list, map2, map3, map5, map6, map8, nullable, string)
 import Json.Encode as JE
 import List as L
 import Maybe as M
 import Msg exposing (Msg(..))
+import Sha256 exposing (sha256)
 import String as S
 import Time exposing (Month(..), Posix, Zone, customZone, millisToPosix, posixToMillis, toDay, toHour, toMinute, toMonth, toYear)
 
@@ -19,7 +20,9 @@ type alias Post =
     , text : String
     , content : Maybe Multimedia
     , comments : Maybe (List Comment)
+    , nonce : Int
     , id : String
+    , hash : String
     }
 
 
@@ -27,6 +30,7 @@ type alias Submission =
     { title : String
     , text : String
     , content : String
+    , nonce : Int
     , contentKind : MultimediaKind
     }
 
@@ -34,6 +38,9 @@ type alias Submission =
 type alias CommentSubmission =
     { text : String
     , parent : String
+    , content : String
+    , contentKind : MultimediaKind
+    , nonce : Int
     }
 
 
@@ -71,24 +78,60 @@ pushComment c p =
             { p | comments = Just [ c ] }
 
 
-fromSubmission : Posix -> Submission -> Post
-fromSubmission time sub =
-    Post (posixToMillis time // 1000)
-        sub.title
-        sub.text
-        (if sub.content /= "" then
-            Just (Multimedia sub.content sub.contentKind)
+fromSubmission : Int -> Posix -> Submission -> Post
+fromSubmission target time sub =
+    let
+        id =
+            postId time sub
+    in
+    if isValidHash target id then
+        Post (posixToMillis time // 1000)
+            sub.title
+            sub.text
+            (if sub.content /= "" then
+                Just (Multimedia sub.content sub.contentKind)
 
-         else
+             else
+                Nothing
+            )
             Nothing
-        )
-        Nothing
-        (postId time sub |> Hash.toString)
+            sub.nonce
+            id
+            id
+
+    else
+        let
+            nonce =
+                sub.nonce
+        in
+        fromSubmission target time { sub | nonce = nonce + 1 }
 
 
-commentFromSubmission : Posix -> CommentSubmission -> Comment
-commentFromSubmission time sub =
-    Comment (posixToMillis time // 1000) sub.text sub.parent (commentId sub |> Hash.toString)
+commentFromSubmission : Int -> Posix -> CommentSubmission -> Comment
+commentFromSubmission target time sub =
+    let
+        id =
+            commentId sub
+    in
+    if isValidHash target id then
+        Comment (posixToMillis time // 1000)
+            sub.text
+            sub.parent
+            id
+            (if sub.content /= "" then
+                Just (Multimedia sub.content sub.contentKind)
+
+             else
+                Nothing
+            )
+            id
+
+    else
+        let
+            nonce =
+                sub.nonce
+        in
+        commentFromSubmission target time { sub | nonce = nonce + 1 }
 
 
 type alias Comment =
@@ -96,6 +139,8 @@ type alias Comment =
     , text : String
     , parent : String
     , id : String
+    , content : Maybe Multimedia
+    , hash : String
     }
 
 
@@ -112,7 +157,7 @@ type MultimediaKind
 
 commentDecoder : Decoder Comment
 commentDecoder =
-    map4 Comment (field "timestamp" int) (field "text" string) (field "parent" string) (field "id" string)
+    map6 Comment (field "timestamp" int) (field "text" string) (field "parent" string) (field "id" string) (field "content" (nullable multimediaDecoder)) (field "hash" string)
 
 
 multimediaDecoder : Decoder Multimedia
@@ -140,22 +185,22 @@ parseMultimediaKind s =
 
 postEncoder : Post -> JE.Value
 postEncoder p =
-    JE.object [ ( "timestamp", JE.int p.timestamp ), ( "title", JE.string p.title ), ( "text", JE.string p.text ), ( "content", p.content |> M.map multimediaEncoder |> M.withDefault JE.null ), ( "comments", JE.null ), ( "id", JE.string p.id ) ]
+    JE.object [ ( "timestamp", JE.int p.timestamp ), ( "title", JE.string p.title ), ( "text", JE.string p.text ), ( "content", p.content |> M.map multimediaEncoder |> M.withDefault JE.null ), ( "comments", JE.null ), ( "nonce", JE.int p.nonce ), ( "hash", JE.string p.hash ), ( "id", JE.string p.id ) ]
 
 
 commentEncoder : Comment -> JE.Value
 commentEncoder c =
-    JE.object [ ( "timestamp", JE.int c.timestamp ), ( "text", JE.string c.text ), ( "parent", JE.string c.parent ), ( "id", JE.string c.id ) ]
+    JE.object [ ( "timestamp", JE.int c.timestamp ), ( "text", JE.string c.text ), ( "parent", JE.string c.parent ), ( "id", JE.string c.id ), ( "content", c.content |> M.map multimediaEncoder |> M.withDefault JE.null ), ( "hash", JE.string c.hash ) ]
 
 
-postId : Posix -> Submission -> Hash
+postId : Posix -> Submission -> String
 postId t sub =
-    Hash.dependent (Hash.fromString sub.title) (Hash.fromString sub.text) |> Hash.dependent (Hash.fromInt (t |> posixToMillis))
+    sha256 (sub.title ++ sub.text ++ S.fromInt sub.nonce ++ S.fromInt (t |> posixToMillis))
 
 
-commentId : CommentSubmission -> Hash
+commentId : CommentSubmission -> String
 commentId sub =
-    Hash.dependent (Hash.fromString sub.text) (Hash.fromString sub.parent)
+    sha256 (sub.text ++ sub.parent ++ S.fromInt sub.nonce)
 
 
 multimediaEncoder : Multimedia -> JE.Value
@@ -177,7 +222,7 @@ multimediaEncoder m =
 
 postDecoder : Decoder Post
 postDecoder =
-    map6 Post (field "timestamp" int) (field "title" string) (field "text" string) (field "content" (nullable multimediaDecoder)) (field "comments" (nullable (list commentDecoder))) (field "id" string)
+    map8 Post (field "timestamp" int) (field "title" string) (field "text" string) (field "content" (nullable multimediaDecoder)) (field "comments" (nullable (list commentDecoder))) (field "nonce" int) (field "id" string) (field "hash" string)
 
 
 showMonth : Month -> String
@@ -263,6 +308,11 @@ showTime t =
            )
         ++ " "
         ++ suffix
+
+
+isValidHash : Int -> String -> Bool
+isValidHash target id =
+    S.length id >= target && (S.left target id |> S.all ((==) '0'))
 
 
 viewTimestamp : Int -> Html Msg
@@ -362,9 +412,35 @@ viewPost nComments verified post =
         ]
 
 
-viewCommentArea : String -> Html Msg
-viewCommentArea existing =
-    div [ class "commentInputArea" ] [ textarea [ class "commentInput", placeholder "Post a reply", onInput ChangeSubCommentText, value existing ] [], div [ class "commentInputActions" ] [ img [ onClick ClearSub, class "cancel", src "/trash.svg" ] [], p [ onClick SubmitComment ] [ text "Submit" ] ] ]
+viewCommentArea : CommentSubmission -> Html Msg
+viewCommentArea submission =
+    div [ class "commentInputArea" ]
+        [ div [ class "commentInputs" ]
+            [ textarea [ class "commentInput", placeholder "Post a reply", onInput ChangeSubCommentText, value submission.text ] []
+            , div [ class "commentContentInput" ]
+                [ input [ placeholder "Link an attachment", onInput ChangeSubCommentContent, value submission.content ] []
+                , p
+                    [ onClick SetSubCommentContentImage
+                    , if submission.contentKind == Image then
+                        class "active"
+
+                      else
+                        class ""
+                    ]
+                    [ text "image" ]
+                , p
+                    [ onClick SetSubCommentContentVideo
+                    , if submission.contentKind == Video then
+                        class "active"
+
+                      else
+                        class ""
+                    ]
+                    [ text "video" ]
+                ]
+            ]
+        , div [ class "commentInputActions" ] [ img [ onClick ClearSub, class "cancel", src "/trash.svg" ] [], p [ onClick SubmitComment ] [ text "Submit" ] ]
+        ]
 
 
 viewSubmitPost : Submission -> Html Msg

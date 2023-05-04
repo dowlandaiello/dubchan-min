@@ -20,6 +20,9 @@ type Msg
     | SubmitPost
     | Tick Time.Posix
     | ChangeSubCommentText String
+    | ChangeSubCommentContent String
+    | SetSubCommentContentImage
+    | SetSubCommentContentVideo
     | SubmitComment
     | CommentAdded JD.Value
     | ChangeSubParent String

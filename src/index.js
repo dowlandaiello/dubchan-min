@@ -15,11 +15,12 @@ app.ports.loadPost.subscribe((m) => {
     if (postStr !== undefined) {
       try {
         const post = { ...JSON.parse(postStr), id: m, nComments: 0 };
+        const epoched = { ...post, nonce: post.nonce ?? 0, hash: post.hash ?? "" };
 
-        if (post.content === null) {
-          app.ports.postLoaded.send({ ...post, comments: [] });
+        if (epoched.content === null) {
+          app.ports.postLoaded.send({ ...epoched, comments: [] });
         } else {
-          app.ports.postLoaded.send({ ...post, comments: [], content: post.content });
+          app.ports.postLoaded.send({ ...epoched, comments: [], content: post.content });
         }
       } catch (e) {
         console.error(e);
@@ -32,13 +33,13 @@ gun.get('#').map().once((str, id) => {
   try {
     const json = JSON.parse(str);
     if (json.parent !== undefined) {
-      app.ports.commentIn.send({ ...json, id: id });
+      app.ports.commentIn.send({ ...json, id: id, nonce: json.nonce ?? 0, hash: json.hash ?? "", content: json.content ?? null });
     }
 
     // This is a post
     if (json.content !== undefined) {
       const post = json;
-      const sanitized = { timestamp: post.timestamp, title: post.title, text: post.text, id: id, comments: null, content: null, nComments: 0 };
+      const sanitized = { timestamp: post.timestamp, title: post.title, text: post.text, id: id, comments: null, content: null, nComments: 0, nonce: post.nonce ?? 0, hash: post.hash ?? "" };
 
       if (post.content !== null) {
         const rich = { ...sanitized, content: post.content };

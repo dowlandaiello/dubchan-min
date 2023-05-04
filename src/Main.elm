@@ -11,7 +11,7 @@ import Json.Encode as JE
 import List as L
 import Maybe as M
 import Msg exposing (Msg(..))
-import Post exposing (Comment, CommentSubmission, MultimediaKind(..), Post, Submission, commentDecoder, commentEncoder, commentFromSubmission, descending, fromSubmission, postDecoder, postEncoder, pushComment, setContent, setContentKind, setText, setTitle, viewCommentArea, viewCommentText, viewPost, viewSubmitPost, viewTimestamp)
+import Post exposing (Comment, CommentSubmission, MultimediaKind(..), Post, Submission, commentDecoder, commentEncoder, commentFromSubmission, descending, fromSubmission, isValidHash, postDecoder, postEncoder, pushComment, setContent, setContentKind, setText, setTitle, viewCommentArea, viewCommentText, viewMultimedia, viewPost, viewSubmitPost, viewTimestamp)
 import Route exposing (..)
 import Set as S
 import String
@@ -32,6 +32,24 @@ type alias Model =
     , time : Time.Posix
     , searchQuery : String
     }
+
+
+epochs : Int -> Int
+epochs timestamp =
+    if timestamp < 1683227741 then
+        0
+
+    else
+        3
+
+
+epochsComments : Int -> Int
+epochsComments timestamp =
+    if timestamp < 1683234089 then
+        0
+
+    else
+        3
 
 
 verifiedPosts =
@@ -123,7 +141,8 @@ viewPosts model =
     div []
         (D.values model.feed
             |> L.sortWith (sortActivity model)
-            |> L.filter (\post -> post.title /= "")
+            |> L.filter (\post -> not (String.isEmpty (String.filter ((/=) ' ') post.title)))
+            |> L.filter (\post -> isValidHash (epochs post.timestamp) post.hash)
             |> L.filter
                 (\post ->
                     let
@@ -156,10 +175,6 @@ viewComment highlightedComment model comment =
             highlightedComment == comment.id
     in
     let
-        commentInput =
-            model.commentSubmission.text
-    in
-    let
         replying =
             model.commentSubmission.parent == comment.id
     in
@@ -190,9 +205,9 @@ viewComment highlightedComment model comment =
                         ]
                         []
                     ]
-                , viewCommentText comment.text
+                , div [ class "commentContent" ] [ viewMultimedia comment.content, viewCommentText comment.text ]
                 , if replying then
-                    viewCommentArea commentInput
+                    viewCommentArea model.commentSubmission
 
                   else
                     text ""
@@ -241,10 +256,10 @@ init flags url key =
         parse routeParser url
     of
         Just (Route.Post p) ->
-            update (SelectPost (Just p)) (Model key url (D.fromList []) (D.fromList []) Nothing S.empty (Submission "" "" "" Image) (CommentSubmission "" "") (Time.millisToPosix 0) "")
+            update (SelectPost (Just p)) (Model key url (D.fromList []) (D.fromList []) Nothing S.empty (Submission "" "" "" 0 Image) (CommentSubmission "" "" "" Image 0) (Time.millisToPosix 0) "")
 
         Nothing ->
-            ( Model key url (D.fromList []) (D.fromList []) Nothing S.empty (Submission "" "" "" Image) (CommentSubmission "" "") (Time.millisToPosix 0) "", Cmd.none )
+            ( Model key url (D.fromList []) (D.fromList []) Nothing S.empty (Submission "" "" "" 0 Image) (CommentSubmission "" "" "" Image 0) (Time.millisToPosix 0) "", Cmd.none )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -280,7 +295,7 @@ update msg model =
         SelectPost p ->
             case p of
                 Just post ->
-                    ( { model | commentSubmission = { text = "", parent = post } }, loadPost post )
+                    ( { model | commentSubmission = { text = "", parent = post, content = "", contentKind = Image, nonce = 0 } }, loadPost post )
 
                 Nothing ->
                     ( { model | viewing = Nothing }, Cmd.none )
@@ -321,7 +336,7 @@ update msg model =
             ( model |> setSubmission (model.submission |> setContentKind Video), Cmd.none )
 
         SubmitPost ->
-            ( model |> setSubmission (Submission "" "" "" Image), model.submission |> fromSubmission model.time |> postEncoder |> submitPost )
+            ( model |> setSubmission (Submission "" "" "" 0 Image), model.submission |> fromSubmission (Time.posixToMillis model.time // 1000 |> epochs) model.time |> postEncoder |> submitPost )
 
         ChangeSubCommentText s ->
             let
@@ -333,10 +348,10 @@ update msg model =
         SubmitComment ->
             case model.viewing of
                 Just viewing ->
-                    ( model |> setCommentSubmission (CommentSubmission "" ""), model.commentSubmission |> commentFromSubmission model.time |> commentEncoder |> submitComment )
+                    ( model |> setCommentSubmission (CommentSubmission "" "" "" Image 0), model.commentSubmission |> commentFromSubmission (epochsComments (Time.posixToMillis model.time // 1000)) model.time |> commentEncoder |> submitComment )
 
                 Nothing ->
-                    ( model |> setCommentSubmission (CommentSubmission "" ""), Cmd.none )
+                    ( model |> setCommentSubmission (CommentSubmission "" "" "" Image 0), Cmd.none )
 
         CommentAdded c ->
             case JD.decodeValue commentDecoder c of
@@ -363,13 +378,34 @@ update msg model =
             ( model |> setCommentSubmission { sub | parent = id }, Cmd.none )
 
         ClearSub ->
-            ( model |> setCommentSubmission { text = "", parent = "" }, Cmd.none )
+            ( model |> setCommentSubmission { text = "", parent = "", content = "", contentKind = Image, nonce = 0 }, Cmd.none )
 
         ToggleHideChain parent ->
             ( model |> toggleHidden parent, Cmd.none )
 
         ChangeSearchQuery q ->
             ( { model | searchQuery = q }, Cmd.none )
+
+        ChangeSubCommentContent s ->
+            let
+                sub =
+                    model.commentSubmission
+            in
+            ( model |> setCommentSubmission { sub | content = s }, Cmd.none )
+
+        SetSubCommentContentImage ->
+            let
+                sub =
+                    model.commentSubmission
+            in
+            ( model |> setCommentSubmission { sub | contentKind = Image }, Cmd.none )
+
+        SetSubCommentContentVideo ->
+            let
+                sub =
+                    model.commentSubmission
+            in
+            ( model |> setCommentSubmission { sub | contentKind = Video }, Cmd.none )
 
 
 port loadPost : String -> Cmd msg
@@ -432,7 +468,7 @@ view model =
                             text ""
 
                           else
-                            viewCommentArea model.commentSubmission.text
+                            viewCommentArea model.commentSubmission
                         , viewPostComments model
                         ]
                     ]
