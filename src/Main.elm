@@ -34,6 +34,10 @@ type alias Model =
     }
 
 
+verifiedPosts =
+    [ "p207+dcU6eJOzXyIVa6BxJDvBA0unmUXYweQny1SEzI=", "xqtklwedVIZKEL8MpZgWg2ktIPp8FE1FIvCbvG51r04=" ]
+
+
 setSubmission : Submission -> Model -> Model
 setSubmission s m =
     { m | submission = s }
@@ -88,9 +92,18 @@ commentsFor s model =
     D.get s model.comments
 
 
+allCommentsFor : String -> Model -> Maybe (List Comment)
+allCommentsFor s model =
+    let
+        roots =
+            D.get s model.comments
+    in
+    roots |> M.map (L.concatMap (\comment -> comment :: M.withDefault [] (allCommentsFor comment.id model)))
+
+
 youngestCommentFor : String -> Model -> Int
 youngestCommentFor s model =
-    commentsFor s model |> M.map (L.sortWith descending) |> M.andThen L.head |> M.map (\comment -> comment.timestamp) |> M.withDefault 0
+    allCommentsFor s model |> M.map (L.sortWith descending) |> M.andThen L.head |> M.map (\comment -> comment.timestamp) |> M.withDefault 0
 
 
 sortActivity model a b =
@@ -119,7 +132,7 @@ viewPosts model =
                     in
                     String.contains q (String.toLower post.title) || String.contains q (String.toLower post.text)
                 )
-            |> L.map (\post -> viewPost (commentsFor post.id model |> M.map L.length |> M.withDefault 0) post)
+            |> L.map (\post -> viewPost (allCommentsFor post.id model |> M.map L.length |> M.withDefault 0) (L.member post.id verifiedPosts) post)
         )
 
 
@@ -190,6 +203,12 @@ viewSearch query =
         [ img [ src "/search.svg" ] []
         , input [ placeholder "Search for something", value query, onInput ChangeSearchQuery ] []
         ]
+
+
+viewQuickLinks : Html Msg
+viewQuickLinks =
+    div [ class "linksArea" ]
+        [ p [ onClick (SelectPost (Just "p207+dcU6eJOzXyIVa6BxJDvBA0unmUXYweQny1SEzI=")) ] [ text "About" ], p [ onClick (SelectPost (Just "xqtklwedVIZKEL8MpZgWg2ktIPp8FE1FIvCbvG51r04=")) ] [ text "Donations" ] ]
 
 
 init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
@@ -362,6 +381,7 @@ view model =
                             [ class "feed" ]
                     )
                     [ div [ class "logo" ] [ img [ src "/logo.png" ] [], div [ class "logoText" ] [ h1 [] [ text "DubChan" ], p [] [ text "Anonymous. Unmoderated." ] ] ]
+                    , viewQuickLinks
                     , viewSubmitPost model.submission
                     , viewSearch model.searchQuery
                     , viewPosts
@@ -374,7 +394,7 @@ view model =
                 div [ class "viewer" ]
                     [ div [ class "viewerBody" ]
                         [ div [ class "navigation" ] [ img [ src "/back.svg", onClick (SelectPost Nothing) ] [] ]
-                        , viewPost 0 viewing
+                        , viewPost 0 (L.member viewing.id verifiedPosts) viewing
                         , if model.commentSubmission.parent /= viewing.id && model.commentSubmission.parent /= "" then
                             text ""
 

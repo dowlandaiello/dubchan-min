@@ -242,7 +242,18 @@ showTime t =
         secsVis =
             secs |> S.fromInt
     in
-    (modBy 12 (toHour z t) |> S.fromInt)
+    let
+        hOffset =
+            modBy 12 (toHour z t)
+    in
+    ((if hOffset == 0 then
+        12
+
+      else
+        hOffset
+     )
+        |> S.fromInt
+    )
         ++ ":"
         ++ (if secs < 10 then
                 "0" ++ secsVis
@@ -333,9 +344,22 @@ viewCommentText c =
     div [ class "commentText" ] (c |> S.lines |> L.map viewTextLine)
 
 
-viewPost : Int -> Post -> Html Msg
-viewPost nComments post =
-    div [ class "post" ] [ div [ class "postTitleLine" ] [ h1 [] [ text post.title ], viewTimestamp post.timestamp ], viewPostText post.text, viewMultimedia post.content, div [ class "postAction", onClick (SelectPost (Just post.id)) ] [ img [ src "/forum.svg" ] [], p [] [ text ("Comments " ++ "(" ++ (nComments |> S.fromInt) ++ ")") ] ] ]
+viewPost : Int -> Bool -> Post -> Html Msg
+viewPost nComments verified post =
+    div [ class "post" ]
+        [ div [ class "postTitleLine" ]
+            [ if verified then
+                img [ src "/verified.svg", class "verifiedIndicator" ] []
+
+              else
+                text ""
+            , h1 [] [ text post.title ]
+            , viewTimestamp post.timestamp
+            ]
+        , viewPostText post.text
+        , viewMultimedia post.content
+        , div [ class "postAction", onClick (SelectPost (Just post.id)) ] [ img [ src "/forum.svg" ] [], p [] [ text ("Comments " ++ "(" ++ (nComments |> S.fromInt) ++ ")") ] ]
+        ]
 
 
 viewCommentArea : String -> Html Msg

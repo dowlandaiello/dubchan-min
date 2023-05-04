@@ -98,6 +98,11 @@ body {
   opacity: 0.8;
 }
 
+.verifiedIndicator {
+  width: 1.5em;
+  margin-right: 0.5em;
+}
+
 .postContent {
   display: flex;
   flex-flow: row nowrap;
@@ -127,6 +132,29 @@ body {
 .postAction img {
   width: 1.5em;
   margin-right: 0.5em;
+}
+
+.linksArea {
+  display: flex;
+
+  flex-flow: row nowrap;
+  justify-content: center;
+  align-items: center;
+  color: white;
+
+  margin-bottom: 3em;
+}
+
+.linksArea>* {
+  border-bottom: 1px solid #6358FF;
+  font-weight: bold;
+  transition: 0.3s;
+  cursor: pointer;
+  margin-left: 0.5em;
+}
+
+.linksArea>*:hover {
+  opacity: 0.8;
 }
 
 .searchArea {
@@ -242,8 +270,6 @@ body {
   flex-flow: row nowrap;
   justify-content: center;
   align-items: flex-end;
-
-  margin-bottom: 3em;
 
   color: white;
   border-bottom: 1px solid #6358FF;
