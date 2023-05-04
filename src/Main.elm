@@ -142,11 +142,19 @@ viewPostComments model =
         comments =
             M.withDefault [] (M.andThen .comments model.viewing)
     in
-    div [ class "comments" ] (comments |> L.sortWith descending |> L.filter (\comment -> comment.text /= "") |> L.map (\comment -> viewComment model comment))
+    let
+        newestComment =
+            model.viewing |> M.map .id |> M.andThen (\id -> allCommentsFor id model) |> M.map (L.sortWith descending) |> M.withDefault [] |> L.head |> M.map .id |> M.withDefault ""
+    in
+    div [ class "comments" ] (comments |> L.sortWith descending |> L.filter (\comment -> comment.text /= "") |> L.map (\comment -> viewComment newestComment model comment))
 
 
-viewComment : Model -> Comment -> Html Msg
-viewComment model comment =
+viewComment : String -> Model -> Comment -> Html Msg
+viewComment highlightedComment model comment =
+    let
+        highlighted =
+            highlightedComment == comment.id
+    in
     let
         commentInput =
             model.commentSubmission.text
@@ -157,30 +165,38 @@ viewComment model comment =
     in
     let
         children =
-            M.withDefault [] (commentsFor comment.id model) |> L.map (viewComment model)
+            M.withDefault [] (commentsFor comment.id model) |> L.map (viewComment highlightedComment model)
     in
     let
         commentContent =
-            [ div [ class "commentActions" ]
-                [ p [ class "commentTimestamp" ] [ viewTimestamp comment.timestamp ]
-                , img
-                    [ src "/reply.svg"
-                    , onClick
-                        (if replying then
-                            ChangeSubParent comment.parent
+            [ div
+                (if highlighted then
+                    [ class "commentBody", class "highlighted" ]
 
-                         else
-                            ChangeSubParent comment.id
-                        )
+                 else
+                    [ class "commentBody" ]
+                )
+                [ div [ class "commentActions" ]
+                    [ p [ class "commentTimestamp" ] [ viewTimestamp comment.timestamp ]
+                    , img
+                        [ src "/reply.svg"
+                        , onClick
+                            (if replying then
+                                ChangeSubParent comment.parent
+
+                             else
+                                ChangeSubParent comment.id
+                            )
+                        ]
+                        []
                     ]
-                    []
-                ]
-            , viewCommentText comment.text
-            , if replying then
-                viewCommentArea commentInput
+                , viewCommentText comment.text
+                , if replying then
+                    viewCommentArea commentInput
 
-              else
-                text ""
+                  else
+                    text ""
+                ]
             , if L.length children > 0 then
                 div [ class "subcommentsArea" ]
                     [ div [ class "commentMarker", onClick (ToggleHideChain comment.id) ] []
@@ -195,7 +211,14 @@ viewComment model comment =
                 text ""
             ]
     in
-    div [ class "comment" ] commentContent
+    div
+        (if highlighted then
+            [ class "comment", class "highlighted" ]
+
+         else
+            [ class "comment" ]
+        )
+        commentContent
 
 
 viewSearch : String -> Html Msg
