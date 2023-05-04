@@ -2,7 +2,7 @@ module Post exposing (..)
 
 import Hash exposing (Hash)
 import Html exposing (Html, div, h1, iframe, img, input, label, p, text, textarea, video)
-import Html.Attributes exposing (class, for, height, id, placeholder, src, title, value, width)
+import Html.Attributes exposing (autoplay, class, controls, for, height, id, loop, placeholder, property, src, title, value, width)
 import Html.Events exposing (onClick, onInput)
 import Json.Decode as JD exposing (Decoder, Error, field, int, list, map2, map3, map5, map6, map8, nullable, string)
 import Json.Encode as JE
@@ -357,7 +357,7 @@ viewMultimedia m =
                         img [ src media.src, class "content" ] []
 
                     Video ->
-                        video [ src media.src, class "content" ] []
+                        video [ src media.src, class "content", autoplay True, property "muted" (JE.bool True), loop True ] []
 
         Nothing ->
             text ""

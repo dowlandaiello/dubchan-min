@@ -504,15 +504,16 @@ body {
 
 .commentBody .commentContent {
   display: flex;
-  flex-flow: column nowrap;
+  flex-flow: row nowrap;
   justify-content: flex-start;
   align-items: flex-start;
 }
 
 .commentBody .content {
-  width: 60%;
+  width: 20%;
   margin: 0;
   margin-right: 0.5em;
+  margin-bottom: 0.5em;
 }
 
 .subcomments {
@@ -610,7 +611,12 @@ body {
   }
 
   .commentInputActions {
+    margin-top: 1em;
     width: 100%;
+  }
+
+  .commentInputs {
+    margin-right: 0;
   }
 }
 
