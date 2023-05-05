@@ -370,29 +370,91 @@ getYtbeEmbed s =
     S.split ".be/" s |> L.drop 1 |> L.head |> M.withDefault "" |> (++) "https://www.youtube.com/embed/"
 
 
-viewMultimedia : Maybe Multimedia -> Html Msg
-viewMultimedia m =
-    case m of
-        Just media ->
-            if S.contains "youtube.com" media.src then
-                iframe [ src (getYtEmbed media.src), class "content", width 560, height 315 ] []
+viewMultimedia : Bool -> Maybe Multimedia -> String -> Html Msg
+viewMultimedia blurred m parentId =
+    div [ class "contentContainer", onClick (SetMediaVisible (not blurred) parentId) ]
+        [ if blurred then
+            img [ src "/hide.svg", class "hideIcon" ] []
 
-            else if S.contains "youtu.be" media.src then
-                iframe [ src (getYtbeEmbed media.src), class "content", width 560, height 315 ] []
-
-            else if S.contains "rumble.com/embed" media.src then
-                iframe [ src media.src, class "content", width 560, height 315 ] []
-
-            else
-                case media.kind of
-                    Image ->
-                        img [ src media.src, class "content" ] []
-
-                    Video ->
-                        video [ src media.src, class "content", autoplay True, property "muted" (JE.bool True), loop True, controls True ] []
-
-        Nothing ->
+          else
             text ""
+        , case m of
+            Just media ->
+                if S.contains "youtube.com" media.src then
+                    iframe
+                        [ src (getYtEmbed media.src)
+                        , class "content"
+                        , if blurred then
+                            class "blurred"
+
+                          else
+                            class ""
+                        , width 560
+                        , height 315
+                        ]
+                        []
+
+                else if S.contains "youtu.be" media.src then
+                    iframe
+                        [ src (getYtbeEmbed media.src)
+                        , class "content"
+                        , if blurred then
+                            class "blurred"
+
+                          else
+                            class ""
+                        , width 560
+                        , height 315
+                        ]
+                        []
+
+                else if S.contains "rumble.com/embed" media.src then
+                    iframe
+                        [ src media.src
+                        , if blurred then
+                            class "blurred"
+
+                          else
+                            class ""
+                        , class "content"
+                        , width 560
+                        , height 315
+                        ]
+                        []
+
+                else
+                    case media.kind of
+                        Image ->
+                            img
+                                [ src media.src
+                                , if blurred then
+                                    class "blurred"
+
+                                  else
+                                    class ""
+                                , class "content"
+                                ]
+                                []
+
+                        Video ->
+                            video
+                                [ src media.src
+                                , class "content"
+                                , if blurred then
+                                    class "blurred"
+
+                                  else
+                                    class ""
+                                , autoplay True
+                                , property "muted" (JE.bool True)
+                                , loop True
+                                , controls True
+                                ]
+                                []
+
+            Nothing ->
+                text ""
+        ]
 
 
 descending a b =
@@ -426,8 +488,8 @@ viewCommentText c =
     div [ class "commentText" ] (c |> S.lines |> L.map viewTextLine)
 
 
-viewPost : Int -> Bool -> Post -> Html Msg
-viewPost nComments verified post =
+viewPost : Bool -> Int -> Bool -> Post -> Html Msg
+viewPost blurred nComments verified post =
     div [ class "post" ]
         [ div [ class "postTitleLine" ]
             [ if verified then
@@ -439,7 +501,7 @@ viewPost nComments verified post =
             , viewTimestamp post.timestamp
             ]
         , viewPostText post.text
-        , viewMultimedia post.content
+        , viewMultimedia blurred post.content post.id
         , div [ class "postAction", onClick (SelectPost (Just post.id)) ] [ img [ src "/forum.svg" ] [], p [] [ text ("Comments " ++ "(" ++ (nComments |> S.fromInt) ++ ")") ] ]
         ]
 

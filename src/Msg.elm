@@ -29,3 +29,4 @@ type Msg
     | ClearSub
     | ToggleHideChain String
     | ChangeSearchQuery String
+    | SetMediaVisible Bool String

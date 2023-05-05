@@ -82,12 +82,50 @@ body {
   color: #789922;
 }
 
-.content {
+.contentContainer {
   width: 70%;
 
   margin-top: 1em;
   align-self: center;
+
   border-radius: 5px;
+
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: center;
+  align-items: center;
+
+  overflow: hidden;
+
+  position: relative;
+}
+
+.contentContainer>.hideIcon {
+  filter: invert(1);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+
+  z-index: 3;
+}
+
+.content {
+  width: 100%;
+}
+
+.content.blurred {
+  -webkit-filter: blur(20px);
+  -moz-filter: blur(20px);
+  -o-filter: blur(20px);
+  -ms-filter: blur(20px);
+  filter: blur(20px);
+  transition: 0.3s;
+  cursor: pointer;
+}
+
+.content.blurred:hover {
+  opacity: 0.8;
 }
 
 .post h1, .post p {

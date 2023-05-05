@@ -31,6 +31,7 @@ type alias Model =
     , commentSubmission : CommentSubmission
     , time : Time.Posix
     , searchQuery : String
+    , visibleMedia : S.Set String
     }
 
 
@@ -207,7 +208,7 @@ viewPosts model =
                     in
                     String.contains q (String.toLower post.title) || String.contains q (String.toLower post.text)
                 )
-            |> L.map (\post -> viewPost (allCommentsFor post.id model |> M.map L.length |> M.withDefault 0) (L.member post.id verifiedPosts) post)
+            |> L.map (\post -> viewPost (not (S.member post.id model.visibleMedia)) (allCommentsFor post.id model |> M.map L.length |> M.withDefault 0) (L.member post.id verifiedPosts) post)
         )
 
 
@@ -261,7 +262,7 @@ viewComment highlightedComment model comment =
                         ]
                         []
                     ]
-                , div [ class "commentContent" ] [ viewMultimedia comment.content, viewCommentText comment.text ]
+                , div [ class "commentContent" ] [ viewMultimedia (not (S.member comment.id model.visibleMedia)) comment.content comment.id, viewCommentText comment.text ]
                 , if replying then
                     viewCommentArea model.commentSubmission
 
@@ -312,10 +313,10 @@ init flags url key =
         parse routeParser url
     of
         Just (Route.Post p) ->
-            update (SelectPost (Just p)) (Model key url (D.fromList []) (D.fromList []) Nothing S.empty (Submission "" "" "" 0 Image) (CommentSubmission "" "" "" Image 0) (Time.millisToPosix 0) "")
+            update (SelectPost (Just p)) (Model key url (D.fromList []) (D.fromList []) Nothing S.empty (Submission "" "" "" 0 Image) (CommentSubmission "" "" "" Image 0) (Time.millisToPosix 0) "" S.empty)
 
         Nothing ->
-            ( Model key url (D.fromList []) (D.fromList []) Nothing S.empty (Submission "" "" "" 0 Image) (CommentSubmission "" "" "" Image 0) (Time.millisToPosix 0) "", Cmd.none )
+            ( Model key url (D.fromList []) (D.fromList []) Nothing S.empty (Submission "" "" "" 0 Image) (CommentSubmission "" "" "" Image 0) (Time.millisToPosix 0) "" S.empty, Cmd.none )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -471,6 +472,22 @@ update msg model =
             in
             ( model |> setCommentSubmission { sub | contentKind = Video }, Cmd.none )
 
+        SetMediaVisible visible media ->
+            let
+                vis =
+                    model.visibleMedia
+            in
+            ( { model
+                | visibleMedia =
+                    if not visible then
+                        S.insert media vis
+
+                    else
+                        S.remove media vis
+              }
+            , Cmd.none
+            )
+
 
 port loadPost : String -> Cmd msg
 
@@ -527,7 +544,7 @@ view model =
                 div [ class "viewer" ]
                     [ div [ class "viewerBody" ]
                         [ div [ class "navigation" ] [ img [ src "/back.svg", onClick (SelectPost Nothing) ] [] ]
-                        , viewPost 0 (L.member viewing.id verifiedPosts) viewing
+                        , viewPost True 0 (L.member viewing.id verifiedPosts) viewing
                         , if model.commentSubmission.parent /= viewing.id && model.commentSubmission.parent /= "" then
                             text ""
 
