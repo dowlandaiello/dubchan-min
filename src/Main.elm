@@ -55,7 +55,7 @@ epochsComments timestamp =
 
 
 verifiedPosts =
-    [ "p207+dcU6eJOzXyIVa6BxJDvBA0unmUXYweQny1SEzI=", "xqtklwedVIZKEL8MpZgWg2ktIPp8FE1FIvCbvG51r04=", "a85JYhmN0WeEP3bDN0JyF6KaNtSu7EjTE4+5pSTGrm4=" ]
+    [ "p207+dcU6eJOzXyIVa6BxJDvBA0unmUXYweQny1SEzI=", "xqtklwedVIZKEL8MpZgWg2ktIPp8FE1FIvCbvG51r04=", "a85JYhmN0WeEP3bDN0JyF6KaNtSu7EjTE4+5pSTGrm4=", "yhKvB2keb6X1U+IeU/LAhppLUCIXRyaDLxkek0T4Ag4=" ]
 
 
 setSubmission : Submission -> Model -> Model
@@ -305,7 +305,7 @@ viewSearch query =
 viewQuickLinks : Html Msg
 viewQuickLinks =
     div [ class "linksArea" ]
-        [ p [ onClick (SelectPost (Just "p207+dcU6eJOzXyIVa6BxJDvBA0unmUXYweQny1SEzI=")) ] [ text "About" ], p [ onClick (SelectPost (Just "xqtklwedVIZKEL8MpZgWg2ktIPp8FE1FIvCbvG51r04=")) ] [ text "Donations" ], p [ onClick (SelectPost (Just "a85JYhmN0WeEP3bDN0JyF6KaNtSu7EjTE4+5pSTGrm4=")) ] [ text "Discord" ] ]
+        [ p [ onClick (SelectPost (Just "p207+dcU6eJOzXyIVa6BxJDvBA0unmUXYweQny1SEzI=")) ] [ text "About" ], p [ onClick (SelectPost (Just "yhKvB2keb6X1U+IeU/LAhppLUCIXRyaDLxkek0T4Ag4=")) ] [ text "Contact" ], p [ onClick (SelectPost (Just "xqtklwedVIZKEL8MpZgWg2ktIPp8FE1FIvCbvG51r04=")) ] [ text "Donations" ], p [ onClick (SelectPost (Just "a85JYhmN0WeEP3bDN0JyF6KaNtSu7EjTE4+5pSTGrm4=")) ] [ text "Discord" ] ]
 
 
 init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
