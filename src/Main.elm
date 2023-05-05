@@ -262,7 +262,7 @@ viewComment highlightedComment model comment =
                         ]
                         []
                     ]
-                , div [ class "commentContent" ] [ viewMultimedia (not (S.member comment.id model.visibleMedia)) comment.content comment.id, viewCommentText comment.text ]
+                , div [ class "commentContent" ] [ viewMultimedia comment.content, viewCommentText comment.text ]
                 , if replying then
                     viewCommentArea model.commentSubmission
 

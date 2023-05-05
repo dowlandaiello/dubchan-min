@@ -103,6 +103,13 @@ body {
 .comment .contentContainer {
   max-width: 20%;
   width: auto;
+  margin: 0;
+  margin-right: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+.comment .content {
+  width: 100%;
 }
 
 .contentContainer>.hideIcon {
@@ -565,6 +572,7 @@ body {
   margin: 0;
   margin-right: 0.5em;
   margin-bottom: 0.5em;
+  border-radius: 5px;
 }
 
 .subcomments {

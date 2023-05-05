@@ -370,8 +370,33 @@ getYtbeEmbed s =
     S.split ".be/" s |> L.drop 1 |> L.head |> M.withDefault "" |> (++) "https://www.youtube.com/embed/"
 
 
-viewMultimedia : Bool -> Maybe Multimedia -> String -> Html Msg
-viewMultimedia blurred m parentId =
+viewMultimedia : Maybe Multimedia -> Html Msg
+viewMultimedia m =
+    case m of
+        Just media ->
+            if S.contains "youtube.com" media.src then
+                iframe [ src (getYtEmbed media.src), class "content", width 560, height 315 ] []
+
+            else if S.contains "youtu.be" media.src then
+                iframe [ src (getYtbeEmbed media.src), class "content", width 560, height 315 ] []
+
+            else if S.contains "rumble.com/embed" media.src then
+                iframe [ src media.src, class "content", width 560, height 315 ] []
+
+            else
+                case media.kind of
+                    Image ->
+                        img [ src media.src, class "content" ] []
+
+                    Video ->
+                        video [ src media.src, class "content", autoplay True, property "muted" (JE.bool True), loop True, controls True ] []
+
+        Nothing ->
+            text ""
+
+
+viewMultimediaSus : Bool -> Maybe Multimedia -> String -> Html Msg
+viewMultimediaSus blurred m parentId =
     div [ class "contentContainer", onClick (SetMediaVisible (not blurred) parentId) ]
         [ if blurred then
             img [ src "/hide.svg", class "hideIcon" ] []
@@ -501,7 +526,7 @@ viewPost blurred nComments verified post =
             , viewTimestamp post.timestamp
             ]
         , viewPostText post.text
-        , viewMultimedia blurred post.content post.id
+        , viewMultimediaSus blurred post.content post.id
         , div [ class "postAction", onClick (SelectPost (Just post.id)) ] [ img [ src "/forum.svg" ] [], p [] [ text ("Comments " ++ "(" ++ (nComments |> S.fromInt) ++ ")") ] ]
         ]
 
