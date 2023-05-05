@@ -32,6 +32,7 @@ type alias Model =
     , time : Time.Posix
     , searchQuery : String
     , visibleMedia : S.Set String
+    , blurImages : Bool
     }
 
 
@@ -208,7 +209,7 @@ viewPosts model =
                     in
                     String.contains q (String.toLower post.title) || String.contains q (String.toLower post.text)
                 )
-            |> L.map (\post -> viewPost (not (S.member post.id model.visibleMedia)) (allCommentsFor post.id model |> M.map L.length |> M.withDefault 0) (L.member post.id verifiedPosts) post)
+            |> L.map (\post -> viewPost (not (S.member post.id model.visibleMedia) && model.blurImages) (allCommentsFor post.id model |> M.map L.length |> M.withDefault 0) (L.member post.id verifiedPosts) post)
         )
 
 
@@ -313,10 +314,10 @@ init flags url key =
         parse routeParser url
     of
         Just (Route.Post p) ->
-            update (SelectPost (Just p)) (Model key url (D.fromList []) (D.fromList []) Nothing S.empty (Submission "" "" "" 0 Image) (CommentSubmission "" "" "" Image 0) (Time.millisToPosix 0) "" S.empty)
+            update (SelectPost (Just p)) (Model key url (D.fromList []) (D.fromList []) Nothing S.empty (Submission "" "" "" 0 Image) (CommentSubmission "" "" "" Image 0) (Time.millisToPosix 0) "" S.empty True)
 
         Nothing ->
-            ( Model key url (D.fromList []) (D.fromList []) Nothing S.empty (Submission "" "" "" 0 Image) (CommentSubmission "" "" "" Image 0) (Time.millisToPosix 0) "" S.empty, Cmd.none )
+            ( Model key url (D.fromList []) (D.fromList []) Nothing S.empty (Submission "" "" "" 0 Image) (CommentSubmission "" "" "" Image 0) (Time.millisToPosix 0) "" S.empty True, Cmd.none )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -488,6 +489,13 @@ update msg model =
             , Cmd.none
             )
 
+        ToggleBlurImages ->
+            let
+                blurred =
+                    model.blurImages
+            in
+            ( { model | blurImages = not blurred }, Cmd.none )
+
 
 port loadPost : String -> Cmd msg
 
@@ -532,7 +540,18 @@ view model =
                         [ div [ class "logo" ] [ img [ src "/logo.png" ] [], div [ class "logoText" ] [ h1 [] [ text "DubChan" ], p [] [ text "Anonymous. Unmoderated." ] ] ]
                         , viewQuickLinks
                         , viewSubmitPost model.submission
-                        , viewSearch model.searchQuery
+                        , div [ class "feedControls" ]
+                            [ viewSearch model.searchQuery
+                            , p
+                                [ onClick ToggleBlurImages
+                                , if model.blurImages then
+                                    class "active"
+
+                                  else
+                                    class ""
+                                ]
+                                [ text "Blur Images" ]
+                            ]
                         , viewPosts
                             model
                         ]
@@ -544,7 +563,7 @@ view model =
                 div [ class "viewer" ]
                     [ div [ class "viewerBody" ]
                         [ div [ class "navigation" ] [ img [ src "/back.svg", onClick (SelectPost Nothing) ] [] ]
-                        , viewPost True 0 (L.member viewing.id verifiedPosts) viewing
+                        , viewPost False 0 (L.member viewing.id verifiedPosts) viewing
                         , if model.commentSubmission.parent /= viewing.id && model.commentSubmission.parent /= "" then
                             text ""
 

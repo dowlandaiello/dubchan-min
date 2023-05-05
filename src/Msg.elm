@@ -30,3 +30,4 @@ type Msg
     | ToggleHideChain String
     | ChangeSearchQuery String
     | SetMediaVisible Bool String
+    | ToggleBlurImages

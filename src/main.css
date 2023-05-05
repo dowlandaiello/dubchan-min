@@ -225,6 +225,29 @@ body {
   opacity: 0.8;
 }
 
+.feedControls {
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: space-between;
+  align-items: center;
+  color: white;
+}
+
+.feedControls>p {
+  margin-left: 1em;
+  white-space: nowrap;
+  transition: 0.3s;
+  cursor: pointer;
+}
+
+.feedControls>p:hover {
+  opacity: 0.8;
+}
+
+.feedControls>p.active {
+  font-weight: bold;
+}
+
 .searchArea {
   background-color: #1A1837;
   border-radius: 5px;
@@ -243,6 +266,8 @@ body {
   flex-flow: row nowrap;
   justify-content: flex-start;
   align-items: center;
+
+  width: 100%;
 }
 
 .searchArea img {
