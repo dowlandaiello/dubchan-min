@@ -74,6 +74,10 @@ body {
   align-items: flex-start;
 }
 
+.postText p {
+  word-break: break-word;
+}
+
 .greentext {
   color: #789922;
 }

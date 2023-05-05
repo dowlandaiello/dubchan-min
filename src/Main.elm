@@ -11,7 +11,7 @@ import Json.Encode as JE
 import List as L
 import Maybe as M
 import Msg exposing (Msg(..))
-import Post exposing (Comment, CommentSubmission, MultimediaKind(..), Post, Submission, commentDecoder, commentEncoder, commentFromSubmission, descending, fromSubmission, isValidHash, postDecoder, postEncoder, pushComment, setContent, setContentKind, setText, setTitle, viewCommentArea, viewCommentText, viewMultimedia, viewPost, viewSubmitPost, viewTimestamp)
+import Post exposing (Comment, CommentSubmission, MultimediaKind(..), Post, Submission, commentDecoder, commentEncoder, commentFromSubmission, commentId, descending, fromSubmission, isValidHash, postDecoder, postEncoder, postId, pushComment, setContent, setContentKind, setText, setTitle, submissionFromComment, submissionFromPost, viewCommentArea, viewCommentText, viewMultimedia, viewPost, viewSubmitPost, viewTimestamp)
 import Route exposing (..)
 import Set as S
 import String
@@ -36,7 +36,7 @@ type alias Model =
 
 epochs : Int -> Int
 epochs timestamp =
-    if timestamp < 1683227741 then
+    if timestamp < 1683261744 then
         0
 
     else
@@ -45,7 +45,7 @@ epochs timestamp =
 
 epochsComments : Int -> Int
 epochsComments timestamp =
-    if timestamp < 1683234089 then
+    if timestamp < 1683262043 then
         0
 
     else
@@ -315,7 +315,11 @@ update msg model =
         PostAdded p ->
             case JD.decodeValue postDecoder p of
                 Ok post ->
-                    ( { model | feed = D.insert post.id post model.feed }, Cmd.none )
+                    let
+                        hashed =
+                            { post | hash = postId (Time.millisToPosix (post.timestamp * 1000)) (submissionFromPost post) }
+                    in
+                    ( { model | feed = D.insert post.id hashed model.feed }, Cmd.none )
 
                 otherwise ->
                     ( model, Cmd.none )
@@ -357,8 +361,12 @@ update msg model =
             case JD.decodeValue commentDecoder c of
                 Ok comment ->
                     let
+                        hashed =
+                            { comment | hash = commentId (submissionFromComment comment) }
+                    in
+                    let
                         modelWithC =
-                            model |> addComment comment
+                            model |> addComment hashed
                     in
                     case modelWithC.viewing of
                         Just viewing ->

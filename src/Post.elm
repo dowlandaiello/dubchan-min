@@ -4,7 +4,7 @@ import Hash exposing (Hash)
 import Html exposing (Html, div, h1, iframe, img, input, label, p, text, textarea, video)
 import Html.Attributes exposing (autoplay, class, controls, for, height, id, loop, placeholder, property, src, title, value, width)
 import Html.Events exposing (onClick, onInput)
-import Json.Decode as JD exposing (Decoder, Error, field, int, list, map2, map3, map5, map6, map8, nullable, string)
+import Json.Decode as JD exposing (Decoder, Error, field, int, list, map2, map3, map5, map7, map8, nullable, string)
 import Json.Encode as JE
 import List as L
 import Maybe as M
@@ -78,6 +78,24 @@ pushComment c p =
             { p | comments = Just [ c ] }
 
 
+submissionFromComment : Comment -> CommentSubmission
+submissionFromComment c =
+    let
+        content =
+            M.withDefault (Multimedia "" Image) c.content
+    in
+    CommentSubmission c.text c.parent content.src content.kind c.nonce
+
+
+submissionFromPost : Post -> Submission
+submissionFromPost p =
+    let
+        content =
+            M.withDefault (Multimedia "" Image) p.content
+    in
+    Submission p.title p.text content.src p.nonce content.kind
+
+
 fromSubmission : Int -> Posix -> Submission -> Post
 fromSubmission target time sub =
     let
@@ -124,6 +142,7 @@ commentFromSubmission target time sub =
              else
                 Nothing
             )
+            0
             id
 
     else
@@ -140,6 +159,7 @@ type alias Comment =
     , parent : String
     , id : String
     , content : Maybe Multimedia
+    , nonce : Int
     , hash : String
     }
 
@@ -157,7 +177,7 @@ type MultimediaKind
 
 commentDecoder : Decoder Comment
 commentDecoder =
-    map6 Comment (field "timestamp" int) (field "text" string) (field "parent" string) (field "id" string) (field "content" (nullable multimediaDecoder)) (field "hash" string)
+    map7 Comment (field "timestamp" int) (field "text" string) (field "parent" string) (field "id" string) (field "content" (nullable multimediaDecoder)) (field "nonce" int) (field "hash" string)
 
 
 multimediaDecoder : Decoder Multimedia
@@ -190,12 +210,12 @@ postEncoder p =
 
 commentEncoder : Comment -> JE.Value
 commentEncoder c =
-    JE.object [ ( "timestamp", JE.int c.timestamp ), ( "text", JE.string c.text ), ( "parent", JE.string c.parent ), ( "id", JE.string c.id ), ( "content", c.content |> M.map multimediaEncoder |> M.withDefault JE.null ), ( "hash", JE.string c.hash ) ]
+    JE.object [ ( "timestamp", JE.int c.timestamp ), ( "text", JE.string c.text ), ( "parent", JE.string c.parent ), ( "id", JE.string c.id ), ( "content", c.content |> M.map multimediaEncoder |> M.withDefault JE.null ), ( "nonce", JE.int c.nonce ), ( "hash", JE.string c.hash ) ]
 
 
 postId : Posix -> Submission -> String
 postId t sub =
-    sha256 (sub.title ++ sub.text ++ S.fromInt sub.nonce ++ S.fromInt (t |> posixToMillis))
+    sha256 (sub.title ++ sub.text ++ S.fromInt sub.nonce ++ S.fromInt (posixToMillis t // 1000))
 
 
 commentId : CommentSubmission -> String
@@ -357,7 +377,7 @@ viewMultimedia m =
                         img [ src media.src, class "content" ] []
 
                     Video ->
-                        video [ src media.src, class "content", autoplay True, property "muted" (JE.bool True), loop True ] []
+                        video [ src media.src, class "content", autoplay True, property "muted" (JE.bool True), loop True, controls True ] []
 
         Nothing ->
             text ""
