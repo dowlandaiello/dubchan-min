@@ -100,6 +100,11 @@ body {
   position: relative;
 }
 
+.comment .contentContainer {
+  max-width: 20%;
+  width: auto;
+}
+
 .contentContainer>.hideIcon {
   filter: invert(1);
   position: absolute;
