@@ -14,7 +14,7 @@ app.ports.loadPost.subscribe((m) => {
   gun.get('#').get(m).once((postStr) => {
     if (postStr !== undefined) {
       try {
-        const post = { ...JSON.parse(postStr), id: m, nComments: 0 };
+        const post = { ...JSON.parse(postStr), id: m, nComments: 0, uniqueFactor: 0.0 };
         const epoched = { ...post, nonce: post.nonce ?? 0, hash: post.hash ?? "" };
 
         if (epoched.content === null) {
@@ -39,7 +39,7 @@ gun.get('#').map().once((str, id) => {
     // This is a post
     if (json.content !== undefined) {
       const post = json;
-      const sanitized = { timestamp: post.timestamp, title: post.title, text: post.text, id: id, comments: null, content: null, nComments: 0, nonce: post.nonce ?? 0, hash: post.hash ?? "" };
+      const sanitized = { timestamp: post.timestamp, title: post.title, text: post.text, id: id, comments: null, content: null, nComments: 0, nonce: post.nonce ?? 0, hash: post.hash ?? "", uniqueFactor: 0.0 };
 
       if (post.content !== null) {
         const rich = { ...sanitized, content: post.content };

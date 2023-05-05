@@ -53,7 +53,7 @@ epochsComments timestamp =
 
 
 verifiedPosts =
-    [ "p207+dcU6eJOzXyIVa6BxJDvBA0unmUXYweQny1SEzI=", "xqtklwedVIZKEL8MpZgWg2ktIPp8FE1FIvCbvG51r04=" ]
+    [ "p207+dcU6eJOzXyIVa6BxJDvBA0unmUXYweQny1SEzI=", "xqtklwedVIZKEL8MpZgWg2ktIPp8FE1FIvCbvG51r04=", "a85JYhmN0WeEP3bDN0JyF6KaNtSu7EjTE4+5pSTGrm4=" ]
 
 
 setSubmission : Submission -> Model -> Model
@@ -136,11 +136,67 @@ sortActivity model a b =
             LT
 
 
+similarityThreshold : Float
+similarityThreshold =
+    0.5
+
+
+similarity : String -> String -> Bool
+similarity a b =
+    let
+        aWords =
+            S.fromList (String.words a)
+    in
+    let
+        bWords =
+            S.fromList (String.words b)
+    in
+    toFloat
+        (S.size (S.intersect aWords bWords))
+        / toFloat (max (S.size aWords) (S.size bWords))
+        >= similarityThreshold
+
+
+similarPosts : Model -> Post -> List Post
+similarPosts model p =
+    D.values model.feed |> L.filter (\post -> post.id /= p.id) |> L.filter (\post -> (similarity post.text p.text && post.text /= "") || similarity post.title p.title)
+
+
+uniqueFactor : Model -> Post -> Float
+uniqueFactor model a =
+    let
+        nSimilar =
+            L.length (similarPosts model a)
+    in
+    0.01 * (toFloat (max nSimilar 0) / toFloat (D.size model.feed + 1))
+
+
+sortFactor : Model -> Post -> Float
+sortFactor model a =
+    let
+        timeFactor =
+            0.99 * (toFloat (max (youngestCommentFor a.id model) a.timestamp) / 1682664445.0)
+    in
+    (1 - a.uniqueFactor) + timeFactor
+
+
+sortUnique model a b =
+    case compare (sortFactor model a) (sortFactor model b) of
+        LT ->
+            GT
+
+        EQ ->
+            EQ
+
+        GT ->
+            LT
+
+
 viewPosts : Model -> Html Msg
 viewPosts model =
     div []
         (D.values model.feed
-            |> L.sortWith (sortActivity model)
+            |> L.sortWith (sortUnique model)
             |> L.filter (\post -> not (String.isEmpty (String.filter ((/=) ' ') post.title)))
             |> L.filter (\post -> isValidHash (epochs post.timestamp) post.hash)
             |> L.filter
@@ -247,7 +303,7 @@ viewSearch query =
 viewQuickLinks : Html Msg
 viewQuickLinks =
     div [ class "linksArea" ]
-        [ p [ onClick (SelectPost (Just "p207+dcU6eJOzXyIVa6BxJDvBA0unmUXYweQny1SEzI=")) ] [ text "About" ], p [ onClick (SelectPost (Just "xqtklwedVIZKEL8MpZgWg2ktIPp8FE1FIvCbvG51r04=")) ] [ text "Donations" ] ]
+        [ p [ onClick (SelectPost (Just "p207+dcU6eJOzXyIVa6BxJDvBA0unmUXYweQny1SEzI=")) ] [ text "About" ], p [ onClick (SelectPost (Just "xqtklwedVIZKEL8MpZgWg2ktIPp8FE1FIvCbvG51r04=")) ] [ text "Donations" ], p [ onClick (SelectPost (Just "a85JYhmN0WeEP3bDN0JyF6KaNtSu7EjTE4+5pSTGrm4=")) ] [ text "Discord" ] ]
 
 
 init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
@@ -317,7 +373,7 @@ update msg model =
                 Ok post ->
                     let
                         hashed =
-                            { post | hash = postId (Time.millisToPosix (post.timestamp * 1000)) (submissionFromPost post) }
+                            { post | hash = postId (Time.millisToPosix (post.timestamp * 1000)) (submissionFromPost post), uniqueFactor = uniqueFactor model post }
                     in
                     ( { model | feed = D.insert post.id hashed model.feed }, Cmd.none )
 

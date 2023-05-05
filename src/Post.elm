@@ -4,7 +4,8 @@ import Hash exposing (Hash)
 import Html exposing (Html, div, h1, iframe, img, input, label, p, text, textarea, video)
 import Html.Attributes exposing (autoplay, class, controls, for, height, id, loop, placeholder, property, src, title, value, width)
 import Html.Events exposing (onClick, onInput)
-import Json.Decode as JD exposing (Decoder, Error, field, int, list, map2, map3, map5, map7, map8, nullable, string)
+import Json.Decode as JD exposing (Decoder, Error, field, float, int, list, map2, map3, map5, map7, map8, nullable, string)
+import Json.Decode.Extra exposing (andMap)
 import Json.Encode as JE
 import List as L
 import Maybe as M
@@ -23,6 +24,7 @@ type alias Post =
     , nonce : Int
     , id : String
     , hash : String
+    , uniqueFactor : Float
     }
 
 
@@ -116,6 +118,7 @@ fromSubmission target time sub =
             sub.nonce
             id
             id
+            0.0
 
     else
         let
@@ -242,7 +245,16 @@ multimediaEncoder m =
 
 postDecoder : Decoder Post
 postDecoder =
-    map8 Post (field "timestamp" int) (field "title" string) (field "text" string) (field "content" (nullable multimediaDecoder)) (field "comments" (nullable (list commentDecoder))) (field "nonce" int) (field "id" string) (field "hash" string)
+    JD.succeed Post
+        |> andMap (field "timestamp" int)
+        |> andMap (field "title" string)
+        |> andMap (field "text" string)
+        |> andMap (field "content" (nullable multimediaDecoder))
+        |> andMap (field "comments" (nullable (list commentDecoder)))
+        |> andMap (field "nonce" int)
+        |> andMap (field "id" string)
+        |> andMap (field "hash" string)
+        |> andMap (field "uniqueFactor" float)
 
 
 showMonth : Month -> String
