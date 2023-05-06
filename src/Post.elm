@@ -1,8 +1,8 @@
 module Post exposing (..)
 
 import Hash exposing (Hash)
-import Html exposing (Html, div, h1, iframe, img, input, label, p, text, textarea, video)
-import Html.Attributes exposing (autoplay, class, controls, for, height, id, loop, placeholder, property, src, title, value, width)
+import Html exposing (Html, a, div, h1, iframe, img, input, label, p, text, textarea, video)
+import Html.Attributes exposing (autoplay, class, controls, for, height, href, id, loop, placeholder, property, src, target, title, value, width)
 import Html.Events exposing (onClick, onInput)
 import Json.Decode as JD exposing (Decoder, Error, field, float, int, list, map2, map3, map5, map7, map8, nullable, string)
 import Json.Decode.Extra exposing (andMap)
@@ -494,10 +494,29 @@ descending a b =
             LT
 
 
+viewLinkableText : String -> Html Msg
+viewLinkableText s =
+    div [ class "linkLine" ]
+        (s
+            |> S.words
+            |> L.map
+                (\word ->
+                    if S.startsWith "http://" word || S.startsWith "https://" word then
+                        a [ href word, target "_blank" ] [ text word ]
+
+                    else
+                        p [] [ text word ]
+                )
+        )
+
+
 viewTextLine : String -> Html Msg
 viewTextLine s =
     if s |> S.startsWith ">" then
         p [ class "greentext" ] [ text s ]
+
+    else if S.contains "http" s then
+        viewLinkableText s
 
     else
         p [] [ text s ]

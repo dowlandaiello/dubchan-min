@@ -92,8 +92,8 @@ body {
   left: 0;
   top: 0;
   background: linear-gradient(transparent 70vh, #110f25);
+  pointer-events: none;
 }
-
 
 .postText p {
   word-break: break-word;
@@ -101,6 +101,28 @@ body {
 
 .greentext {
   color: #789922;
+}
+
+.linkLine {
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.linkLine>* {
+  margin-right: 0.5ch;
+}
+
+.linkLine a {
+  color: white;
+  border-bottom: 2px solid #6358FF;
+  text-decoration: none;
+  transition: 0.3s;
+}
+
+.linkLine a:hover {
+  opacity: 0.8;
 }
 
 .contentContainer {
@@ -674,7 +696,8 @@ body {
 }
 
 .commentText p {
-  margin: 0;
+  margin-top: 0;
+  margin-bottom: 0;
 }
 
 .commentActions {
