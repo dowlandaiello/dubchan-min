@@ -74,6 +74,16 @@ body {
   align-items: flex-start;
 }
 
+.post {
+  max-height: 80vh;
+  overflow: auto;
+}
+
+.postText {
+  max-height: 100%;
+  overflow: auto;
+}
+
 .postText p {
   word-break: break-word;
 }
