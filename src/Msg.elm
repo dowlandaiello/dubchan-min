@@ -31,3 +31,4 @@ type Msg
     | ChangeSearchQuery String
     | SetMediaVisible Bool String
     | ToggleBlurImages
+    | CopyString String

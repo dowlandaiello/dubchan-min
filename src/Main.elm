@@ -314,7 +314,7 @@ init flags url key =
         parse routeParser url
     of
         Just (Route.Post p) ->
-            update (SelectPost (Just p)) (Model key url (D.fromList []) (D.fromList []) Nothing S.empty (Submission "" "" "" 0 Image) (CommentSubmission "" "" "" Image 0) (Time.millisToPosix 0) "" S.empty True)
+            update (SelectPost p) (Model key url (D.fromList []) (D.fromList []) Nothing S.empty (Submission "" "" "" 0 Image) (CommentSubmission "" "" "" Image 0) (Time.millisToPosix 0) "" S.empty True)
 
         Nothing ->
             ( Model key url (D.fromList []) (D.fromList []) Nothing S.empty (Submission "" "" "" 0 Image) (CommentSubmission "" "" "" Image 0) (Time.millisToPosix 0) "" S.empty True, Cmd.none )
@@ -340,7 +340,7 @@ update msg model =
                     (\route ->
                         case route of
                             Route.Post p ->
-                                SelectPost (Just p)
+                                SelectPost p
                     )
                     (parse routeParser url)
             of
@@ -496,6 +496,9 @@ update msg model =
             in
             ( { model | blurImages = not blurred }, Cmd.none )
 
+        CopyString s ->
+            ( model, copy s )
+
 
 port loadPost : String -> Cmd msg
 
@@ -513,6 +516,9 @@ port submitPost : JE.Value -> Cmd msg
 
 
 port submitComment : JE.Value -> Cmd msg
+
+
+port copy : String -> Cmd msg
 
 
 view : Model -> Browser.Document Msg

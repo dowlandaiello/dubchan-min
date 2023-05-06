@@ -10,6 +10,10 @@ const app = Elm.Main.init({
   node: document.getElementById('root')
 });
 
+app.ports.copy.subscribe((s) => {
+  navigator.clipboard.writeText(s);
+});
+
 app.ports.loadPost.subscribe((m) => {
   gun.get('#').get(m).once((postStr) => {
     if (postStr !== undefined) {

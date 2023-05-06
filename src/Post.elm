@@ -535,14 +535,17 @@ viewCommentText c =
 viewPost : Bool -> Int -> Bool -> Post -> Html Msg
 viewPost blurred nComments verified post =
     div [ class "post" ]
-        [ div [ class "postTitleLine" ]
-            [ if verified then
-                img [ src "/verified.svg", class "verifiedIndicator" ] []
+        [ div [ class "postHeader" ]
+            [ div [ class "postTitleLine" ]
+                [ if verified then
+                    img [ src "/verified.svg", class "verifiedIndicator" ] []
 
-              else
-                text ""
-            , h1 [] [ text post.title ]
-            , viewTimestamp post.timestamp
+                  else
+                    text ""
+                , h1 [] [ text post.title ]
+                , viewTimestamp post.timestamp
+                ]
+            , div [ class "postActions" ] [ img [ src "/link.svg", onClick (CopyString ("https://dubchan.net/?post=" ++ post.id)) ] [] ]
             ]
         , viewPostText post.text
         , viewMultimediaSus blurred post.content post.id
