@@ -75,12 +75,11 @@ body {
 }
 
 .post {
-  max-height: 80vh;
   overflow: auto;
 }
 
 .postText {
-  max-height: 100%;
+  max-height: 80vh;
   overflow: auto;
 }
 
@@ -163,8 +162,8 @@ body {
 
   margin-bottom: 0.5em;
 
-  overflow: clip;
   width: 100%;
+  overflow: clip;
 }
 
 .postTitleLine h1 {
