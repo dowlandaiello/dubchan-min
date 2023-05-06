@@ -84,6 +84,10 @@ body {
   position: relative;
 }
 
+.viewer .postText {
+  max-height: none;
+}
+
 .postText:before {
   content: "";
   width: 100%;
@@ -93,6 +97,10 @@ body {
   top: 0;
   background: linear-gradient(transparent 70vh, #110f25);
   pointer-events: none;
+}
+
+.viewer .postText:before {
+  display: none;
 }
 
 .postText p {
