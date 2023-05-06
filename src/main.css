@@ -75,13 +75,25 @@ body {
 }
 
 .post {
-  overflow: auto;
+  overflow: hidden;
 }
 
 .postText {
   max-height: 80vh;
-  overflow: auto;
+  overflow: clip;
+  position: relative;
 }
+
+.postText:before {
+  content: "";
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  left: 0;
+  top: 0;
+  background: linear-gradient(transparent 70vh, #110f25);
+}
+
 
 .postText p {
   word-break: break-word;
