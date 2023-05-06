@@ -567,27 +567,36 @@ viewSubmitPost submission =
     div [ class "submitArea" ]
         [ h1 [] [ text "New Post" ]
         , input [ id "titleInput", placeholder "Post Title", onInput ChangeSubTitle, value submission.title ] []
-        , textarea [ placeholder "Post Text", onInput ChangeSubText, value submission.text ] []
-        , div [ class "mediaSelector" ]
-            [ input [ placeholder "Post Attachment", onInput ChangeSubContent, value submission.content ] []
-            , p
-                [ onClick SetSubContentVideo
-                , if submission.contentKind == Video then
-                    class "active"
+        , div [ class "bodyInputArea" ]
+            [ if submission.content /= "" then
+                viewMultimedia (Just (Multimedia submission.content submission.contentKind))
 
-                  else
-                    class ""
-                ]
-                [ text "video" ]
-            , p
-                [ onClick SetSubContentImage
-                , if submission.contentKind == Image then
-                    class "active"
+              else
+                text ""
+            , div [ class "bodyInput" ]
+                [ textarea [ placeholder "Post Text", onInput ChangeSubText, value submission.text ] []
+                , div [ class "mediaSelector" ]
+                    [ input [ placeholder "Post Attachment", onInput ChangeSubContent, value submission.content ] []
+                    , p
+                        [ onClick SetSubContentVideo
+                        , if submission.contentKind == Video then
+                            class "active"
 
-                  else
-                    class ""
+                          else
+                            class ""
+                        ]
+                        [ text "video" ]
+                    , p
+                        [ onClick SetSubContentImage
+                        , if submission.contentKind == Image then
+                            class "active"
+
+                          else
+                            class ""
+                        ]
+                        [ text "image" ]
+                    ]
                 ]
-                [ text "image" ]
             ]
         , p [ onClick SubmitPost, class "submit" ] [ text "Submit" ]
         ]

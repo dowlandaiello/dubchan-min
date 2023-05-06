@@ -322,6 +322,27 @@ body {
   margin-bottom: 1em;
 }
 
+.bodyInputArea {
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: flex-start;
+  align-items: flex-start
+}
+
+.bodyInputArea .content {
+  width: 30%;
+  margin-right: 0.5em;
+  border-radius: 5px;
+}
+
+.bodyInput {
+  width: 100%;
+}
+
+.bodyInput>* {
+  width: 100%;
+}
+
 .mediaSelector {
   display: flex;
 
