@@ -2,7 +2,7 @@ module Post exposing (..)
 
 import Hash exposing (Hash)
 import Html exposing (Html, a, div, h1, iframe, img, input, label, p, text, textarea, video)
-import Html.Attributes exposing (autoplay, class, controls, for, height, href, id, loop, placeholder, property, src, target, title, value, width)
+import Html.Attributes exposing (class, controls, for, height, href, id, loop, placeholder, preload, property, src, target, title, value, width)
 import Html.Events exposing (onClick, onInput)
 import Json.Decode as JD exposing (Decoder, Error, field, float, int, list, map2, map3, map5, map7, map8, nullable, string)
 import Json.Decode.Extra exposing (andMap)
@@ -389,7 +389,7 @@ viewMultimedia m =
                         img [ src media.src, class "content" ] []
 
                     Video ->
-                        video [ src media.src, class "content", autoplay True, property "muted" (JE.bool True), loop True, controls True ] []
+                        video [ src media.src, class "content", preload "metadata", property "muted" (JE.bool True), loop True, controls True ] []
 
         Nothing ->
             text ""
@@ -470,7 +470,7 @@ viewMultimediaSus blurred m parentId =
 
                                   else
                                     class ""
-                                , autoplay True
+                                , preload "metadata"
                                 , property "muted" (JE.bool True)
                                 , loop True
                                 , controls True
@@ -545,7 +545,7 @@ viewPost blurred nComments verified post =
                 , h1 [] [ text post.title ]
                 , viewTimestamp post.timestamp
                 ]
-            , div [ class "postActions" ] [ img [ src "/link.svg", onClick (CopyString ("https://dubchan.net/?post=" ++ post.id)) ] [] ]
+            , div [ class "postActions" ] [ img [ src "/link.svg", onClick (CopyString ("https://dubchan.net/?post=" ++ S.dropRight 1 post.id)) ] [] ]
             ]
         , viewPostText post.text
         , viewMultimediaSus blurred post.content post.id

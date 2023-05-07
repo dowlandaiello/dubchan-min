@@ -17,7 +17,7 @@ import Set as S
 import String
 import Time
 import Url
-import Url.Parser exposing (parse)
+import Url.Parser exposing (parse, query)
 
 
 type alias Model =
@@ -302,6 +302,15 @@ viewSearch query =
         ]
 
 
+normalizePostId : String -> String
+normalizePostId id =
+    if String.endsWith "=" id then
+        id
+
+    else
+        id ++ "="
+
+
 viewQuickLinks : Html Msg
 viewQuickLinks =
     div [ class "linksArea" ]
@@ -310,14 +319,17 @@ viewQuickLinks =
 
 init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
 init flags url key =
-    case
-        parse routeParser url
-    of
-        Just (Route.Post p) ->
-            update (SelectPost p) (Model key url (D.fromList []) (D.fromList []) Nothing S.empty (Submission "" "" "" 0 Image) (CommentSubmission "" "" "" Image 0) (Time.millisToPosix 0) "" S.empty True)
-
-        Nothing ->
-            ( Model key url (D.fromList []) (D.fromList []) Nothing S.empty (Submission "" "" "" 0 Image) (CommentSubmission "" "" "" Image 0) (Time.millisToPosix 0) "" S.empty True, Cmd.none )
+    let
+        p =
+            url |> parse (query routeParser) |> Maybe.withDefault Nothing
+    in
+    let
+        normalized =
+            p
+                |> M.map
+                    normalizePostId
+    in
+    update (SelectPost normalized) (Model key url (D.fromList []) (D.fromList []) Nothing S.empty (Submission "" "" "" 0 Image) (CommentSubmission "" "" "" Image 0) (Time.millisToPosix 0) "" S.empty True)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -338,11 +350,11 @@ update msg model =
             case
                 M.map
                     (\route ->
-                        case route of
-                            Route.Post p ->
-                                SelectPost p
+                        SelectPost (route |> M.map normalizePostId)
                     )
-                    (parse routeParser url)
+                    (url
+                        |> parse (query routeParser)
+                    )
             of
                 Just m ->
                     update m model
