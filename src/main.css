@@ -53,6 +53,10 @@ body {
   height: 100%;
 }
 
+.feed>*:last-child {
+  padding-bottom: 1em;
+}
+
 .feed.hidden {
   opacity: 0;
 }
@@ -107,19 +111,19 @@ body {
   word-break: break-word;
 }
 
-.greentext {
-  color: #789922;
-}
-
 .linkLine {
   display: flex;
-  flex-flow: row nowrap;
+  flex-flow: row wrap;
   justify-content: flex-start;
   align-items: center;
 }
 
 .linkLine>* {
   margin-right: 0.5ch;
+}
+
+.greentext {
+  color: #789922;
 }
 
 .linkLine a {
@@ -192,7 +196,8 @@ body {
 }
 
 .post h1, .post p {
-  margin: 0;
+  margin-top: 0;
+  margin-bottom: 0;
 }
 
 .postHeader {

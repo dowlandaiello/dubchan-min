@@ -370,6 +370,11 @@ getYtbeEmbed s =
     S.split ".be/" s |> L.drop 1 |> L.head |> M.withDefault "" |> (++) "https://www.youtube.com/embed/"
 
 
+getChunkTime : Int -> Int
+getChunkTime t =
+    t // 86400 * 86400
+
+
 viewMultimedia : Maybe Multimedia -> Html Msg
 viewMultimedia m =
     case m of

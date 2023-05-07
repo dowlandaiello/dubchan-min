@@ -32,3 +32,4 @@ type Msg
     | SetMediaVisible Bool String
     | ToggleBlurImages
     | CopyString String
+    | ScrolledBottom

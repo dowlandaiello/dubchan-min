@@ -6,16 +6,21 @@ import SEA from 'gun/sea';
 
 const gun = GUN({peers: ['https://dubchan.herokuapp.com/gun']});
 
+const scrollDebounce = 100;
+let debounceTimer = null;
+
 const app = Elm.Main.init({
   node: document.getElementById('root')
 });
+
+const chunk = (timestamp) => Math.floor(timestamp / 86400) * 86400;
 
 app.ports.copy.subscribe((s) => {
   navigator.clipboard.writeText(s);
 });
 
 app.ports.loadPost.subscribe((m) => {
-  gun.get('#').get(m).once((postStr) => {
+  gun.get('#posts').get(m).once((postStr) => {
     if (postStr !== undefined) {
       try {
         const post = { ...JSON.parse(postStr), id: m, nComments: 0, uniqueFactor: 0.0 };
@@ -33,46 +38,76 @@ app.ports.loadPost.subscribe((m) => {
   });
 });
 
-gun.get('#').map().once((str, id) => {
-  try {
-    const json = JSON.parse(str);
-    if (json.parent !== undefined) {
-      app.ports.commentIn.send({ ...json, id: id, nonce: json.nonce ?? 0, hash: json.hash ?? "", content: json.content ?? null });
-    }
-
-    // This is a post
-    if (json.content !== undefined) {
-      const post = json;
-      const sanitized = { timestamp: post.timestamp, title: post.title, text: post.text, id: id, comments: null, content: null, nComments: 0, nonce: post.nonce ?? 0, hash: post.hash ?? "", uniqueFactor: 0.0 };
-
-      if (post.content !== null) {
-        const rich = { ...sanitized, content: post.content };
-
-        app.ports.postIn.send(rich);
-      } else {
-        app.ports.postIn.send(sanitized);
+app.ports.getComments.subscribe((post) => {
+  gun.get('#comments/' + post).map().once((str, id) => {
+    try {
+      const json = JSON.parse(str);
+      if (json.parent !== undefined) {
+        app.ports.commentIn.send({ ...json, id: id, nonce: json.nonce ?? 0, hash: json.hash ?? "", content: json.content ?? null });
       }
+    } catch (e) {
+      console.error(e);
     }
-  } catch (e) {
-    console.error(e);
-  }
+  });
 });
+
+const loadChunk = (timestamp) => {
+  gun.get('#posts').get({ '.': { '*': timestamp.toString() }}).map().once(async (str, id) => {
+    try {
+      const json = JSON.parse(str);
+      const id = await SEA.work(str, null, null, { name: 'SHA-256' });
+
+      // This is a post
+      if (json.title !== undefined) {
+        const post = json;
+        const sanitized = { timestamp: post.timestamp, title: post.title, text: post.text, id: id, comments: null, content: null, nComments: 0, nonce: post.nonce ?? 0, hash: post.hash ?? "", uniqueFactor: 0.0 };
+
+        if (post.content !== null) {
+          const rich = { ...sanitized, content: post.content };
+
+          app.ports.postIn.send(rich);
+        } else {
+          app.ports.postIn.send(sanitized);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  });
+};
+
+app.ports.loadChunk.subscribe(loadChunk);
 
 app.ports.submitPost.subscribe(async (post) => {
   const data = JSON.stringify(post);
-  const hash = await SEA.work(data, null, null, { name: "SHA-256" });
+  const hash = await SEA.work(data, null, null, { name: 'SHA-256' });
 
-  const inserted = gun.get('#').get(hash).put(data);
-  gun.get('posts').set(hash);
+  gun.get('#posts').get(chunk(post.timestamp) + '#' + hash).put(data);
+  gun.get('#posts').get(hash).put(data);
 });
 
-app.ports.submitComment.subscribe(async (comment) => {
+app.ports.submitComment.subscribe(async ([comment, parent]) => {
   const data = JSON.stringify(comment);
+  const parentData = JSON.stringify(parent);
   const hash = await SEA.work(data, null, null, { name: "SHA-256" });
+  const parentHash = await SEA.work(parentData, null, null, { name: "SHA-256" });
 
-  const inserted = gun.get('#').get(hash).put(data)
-  gun.get('comments').get(comment.parent).set(hash);
+  gun.get('#comments/' + comment.parent).get(hash).put(data);
+  gun.get('#posts').get(chunk(comment.timestamp) + '#' + comment.parent).put(parentData);
 });
+
+const feed = document.getElementsByClassName("feedContainer")[0];
+
+setTimeout(() => {
+	feed.addEventListener('scroll', (e) => {
+	  clearTimeout(debounceTimer);
+	  debounceTimer = setTimeout(() => {
+	    if (feed.scrollTop + feed.clientHeight >= feed.scrollHeight * 0.8) {
+	      app.ports.scrolledBottom.send(true);
+	    }
+	  }, scrollDebounce);
+	}, { passive: true });
+}, 300);
 
 window.gun = gun;
 window.sea = SEA;

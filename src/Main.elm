@@ -11,7 +11,7 @@ import Json.Encode as JE
 import List as L
 import Maybe as M
 import Msg exposing (Msg(..))
-import Post exposing (Comment, CommentSubmission, MultimediaKind(..), Post, Submission, commentDecoder, commentEncoder, commentFromSubmission, commentId, descending, fromSubmission, isValidHash, postDecoder, postEncoder, postId, pushComment, setContent, setContentKind, setText, setTitle, submissionFromComment, submissionFromPost, viewCommentArea, viewCommentText, viewMultimedia, viewPost, viewSubmitPost, viewTimestamp)
+import Post exposing (Comment, CommentSubmission, MultimediaKind(..), Post, Submission, commentDecoder, commentEncoder, commentFromSubmission, commentId, descending, fromSubmission, getChunkTime, isValidHash, postDecoder, postEncoder, postId, pushComment, setContent, setContentKind, setText, setTitle, submissionFromComment, submissionFromPost, viewCommentArea, viewCommentText, viewMultimedia, viewPost, viewSubmitPost, viewTimestamp)
 import Route exposing (..)
 import Set as S
 import String
@@ -24,7 +24,7 @@ type alias Model =
     { key : Nav.Key
     , url : Url.Url
     , feed : D.Dict String Post
-    , comments : D.Dict String (List Comment)
+    , comments : D.Dict String (D.Dict String Comment)
     , viewing : Maybe Post
     , hidden : S.Set String
     , submission : Submission
@@ -33,6 +33,7 @@ type alias Model =
     , searchQuery : String
     , visibleMedia : S.Set String
     , blurImages : Bool
+    , lastChunk : Int
     }
 
 
@@ -89,10 +90,10 @@ addComment c m =
                     (\maybeComments ->
                         case maybeComments of
                             Just comments ->
-                                Just (c :: comments)
+                                Just (D.insert c.id c comments)
 
                             Nothing ->
-                                Just [ c ]
+                                Just (D.fromList [ ( c.id, c ) ])
                     )
                     m.comments
         }
@@ -113,7 +114,7 @@ toggleHidden parent m =
 
 commentsFor : String -> Model -> Maybe (List Comment)
 commentsFor s model =
-    D.get s model.comments |> M.map (L.sortWith descending)
+    D.get s model.comments |> M.map D.values |> M.map (L.sortWith descending)
 
 
 allCommentsFor : String -> Model -> Maybe (List Comment)
@@ -122,7 +123,7 @@ allCommentsFor s model =
         roots =
             D.get s model.comments
     in
-    roots |> M.map (L.concatMap (\comment -> comment :: M.withDefault [] (allCommentsFor comment.id model)))
+    roots |> M.map D.values |> M.map (L.concatMap (\comment -> comment :: M.withDefault [] (allCommentsFor comment.id model)))
 
 
 youngestCommentFor : String -> Model -> Int
@@ -202,9 +203,9 @@ viewPosts : Model -> Html Msg
 viewPosts model =
     div []
         (D.values model.feed
-            |> L.sortWith (sortUnique model)
+            |> L.sortWith (sortActivity model)
             |> L.filter (\post -> not (String.isEmpty (String.filter ((/=) ' ') post.title)))
-            |> L.filter (\post -> not (L.member post.id susPosts))
+            |> L.filter (\post -> not (L.member post.id susPosts) && not (String.startsWith "fuck you" post.title))
             |> L.filter (\post -> isValidHash (epochs post.timestamp) post.hash)
             |> L.filter
                 (\post ->
@@ -334,14 +335,22 @@ init flags url key =
                 |> M.map
                     normalizePostId
     in
-    update (SelectPost normalized) (Model key url (D.fromList []) (D.fromList []) Nothing S.empty (Submission "" "" "" 0 Image) (CommentSubmission "" "" "" Image 0) (Time.millisToPosix 0) "" S.empty True)
+    update (SelectPost normalized) (Model key url (D.fromList []) (D.fromList []) Nothing S.empty (Submission "" "" "" 0 Image) (CommentSubmission "" "" "" Image 0) (Time.millisToPosix 0) "" S.empty True 0)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         Tick t ->
-            ( { model | time = t }, Cmd.none )
+            let
+                unix =
+                    Time.posixToMillis t // 1000
+            in
+            if getChunkTime unix - model.lastChunk > 86400 then
+                ( { model | time = t, lastChunk = getChunkTime unix }, loadChunk (getChunkTime unix) )
+
+            else
+                ( { model | time = t }, Cmd.none )
 
         ClickLink urlRequest ->
             case urlRequest of
@@ -370,7 +379,7 @@ update msg model =
         SelectPost p ->
             case p of
                 Just post ->
-                    ( { model | commentSubmission = { text = "", parent = post, content = "", contentKind = Image, nonce = 0 } }, loadPost post )
+                    ( { model | commentSubmission = { text = "", parent = post, content = "", contentKind = Image, nonce = 0 } }, Cmd.batch [ loadPost post, getComments post ] )
 
                 Nothing ->
                     ( { model | viewing = Nothing }, Cmd.none )
@@ -380,7 +389,7 @@ update msg model =
                 Ok post ->
                     let
                         postWithC =
-                            { post | comments = D.get post.id model.comments }
+                            { post | comments = D.get post.id model.comments |> M.map D.values }
                     in
                     ( { model | viewing = Just postWithC }, Cmd.none )
 
@@ -394,7 +403,7 @@ update msg model =
                         hashed =
                             { post | hash = postId (Time.millisToPosix (post.timestamp * 1000)) (submissionFromPost post), uniqueFactor = uniqueFactor model post }
                     in
-                    ( { model | feed = D.insert post.id hashed model.feed }, Cmd.none )
+                    ( { model | feed = D.insert post.id hashed model.feed }, getComments post.id )
 
                 otherwise ->
                     ( model, Cmd.none )
@@ -427,7 +436,11 @@ update msg model =
         SubmitComment ->
             case model.viewing of
                 Just viewing ->
-                    ( model |> setCommentSubmission (CommentSubmission "" "" "" Image 0), model.commentSubmission |> commentFromSubmission (epochsComments (Time.posixToMillis model.time // 1000)) model.time |> commentEncoder |> submitComment )
+                    let
+                        vJson =
+                            postEncoder viewing
+                    in
+                    ( model |> setCommentSubmission (CommentSubmission "" "" "" Image 0), model.commentSubmission |> commentFromSubmission (epochsComments (Time.posixToMillis model.time // 1000)) model.time |> commentEncoder |> (\cJson -> JE.list identity [ cJson, vJson ]) |> submitComment )
 
                 Nothing ->
                     ( model |> setCommentSubmission (CommentSubmission "" "" "" Image 0), Cmd.none )
@@ -448,7 +461,7 @@ update msg model =
                             ( modelWithC |> setViewing { viewing | comments = modelWithC |> commentsFor viewing.id }, Cmd.none )
 
                         Nothing ->
-                            ( modelWithC, Cmd.none )
+                            ( modelWithC, getComments comment.id )
 
                 otherwise ->
                     ( model, Cmd.none )
@@ -516,6 +529,13 @@ update msg model =
         CopyString s ->
             ( model, copy s )
 
+        ScrolledBottom ->
+            let
+                newChunk =
+                    model.lastChunk - 86400
+            in
+            ( { model | lastChunk = newChunk }, loadChunk newChunk )
+
 
 port loadPost : String -> Cmd msg
 
@@ -536,6 +556,15 @@ port submitComment : JE.Value -> Cmd msg
 
 
 port copy : String -> Cmd msg
+
+
+port getComments : String -> Cmd msg
+
+
+port loadChunk : Int -> Cmd msg
+
+
+port scrolledBottom : (JE.Value -> msg) -> Sub msg
 
 
 view : Model -> Browser.Document Msg
@@ -604,7 +633,7 @@ view model =
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    Sub.batch [ postLoaded PostLoaded, postIn PostAdded, commentIn CommentAdded, Time.every 1 Tick ]
+    Sub.batch [ postLoaded PostLoaded, postIn PostAdded, commentIn CommentAdded, scrolledBottom (always ScrolledBottom), Time.every 1 Tick ]
 
 
 main : Program () Model Msg
