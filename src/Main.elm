@@ -58,6 +58,10 @@ verifiedPosts =
     [ "p207+dcU6eJOzXyIVa6BxJDvBA0unmUXYweQny1SEzI=", "xqtklwedVIZKEL8MpZgWg2ktIPp8FE1FIvCbvG51r04=", "a85JYhmN0WeEP3bDN0JyF6KaNtSu7EjTE4+5pSTGrm4=", "yhKvB2keb6X1U+IeU/LAhppLUCIXRyaDLxkek0T4Ag4=" ]
 
 
+susPosts =
+    [ "atZytiL2hoFVzhtsPAcM9q57iGdHNFF0dbk6VQf+TqM=" ]
+
+
 setSubmission : Submission -> Model -> Model
 setSubmission s m =
     { m | submission = s }
@@ -200,6 +204,7 @@ viewPosts model =
         (D.values model.feed
             |> L.sortWith (sortUnique model)
             |> L.filter (\post -> not (String.isEmpty (String.filter ((/=) ' ') post.title)))
+            |> L.filter (\post -> not (L.member post.id susPosts))
             |> L.filter (\post -> isValidHash (epochs post.timestamp) post.hash)
             |> L.filter
                 (\post ->
