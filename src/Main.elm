@@ -436,7 +436,7 @@ update msg model =
                     in
                     case modelWithC.viewing of
                         Just viewing ->
-                            ( modelWithC |> setViewing { viewing | comments = modelWithC |> commentsFor viewing.id }, Cmd.none )
+                            ( modelWithC |> setViewing { viewing | comments = modelWithC |> commentsFor viewing.id }, getComments comment.id )
 
                         Nothing ->
                             ( modelWithC, getComments comment.id )

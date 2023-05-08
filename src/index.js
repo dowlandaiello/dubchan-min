@@ -94,7 +94,7 @@ app.ports.submitComment.subscribe(async ([comment, rawParent]) => {
   const parentHash = await SEA.work(parentData, null, null, { name: "SHA-256" });
 
   gun.get('#comments/' + comment.parent).get(hash).put(data);
-  gun.get('#posts').get(chunk(comment.timestamp) + '#' + comment.parent).put(parentData);
+  gun.get('#posts').get(chunk(comment.timestamp) + '#' + parentHash).put(parentData);
 });
 
 const feed = document.getElementsByClassName("feedContainer")[0];
