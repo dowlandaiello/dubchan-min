@@ -11,7 +11,7 @@ import Json.Encode as JE
 import List as L
 import Maybe as M
 import Msg exposing (Msg(..))
-import Post exposing (Comment, CommentSubmission, MultimediaKind(..), Post, Submission, commentDecoder, commentEncoder, commentFromSubmission, commentId, descending, fromSubmission, getChunkTime, isValidHash, postDecoder, postEncoder, postId, pushComment, setContent, setContentKind, setText, setTitle, submissionFromComment, submissionFromPost, viewCommentArea, viewCommentText, viewMultimedia, viewPost, viewSubmitPost, viewTimestamp)
+import Post exposing (Comment, CommentSubmission, MultimediaKind(..), Post, Submission, commentDecoder, commentEncoder, commentFromSubmission, commentId, descending, fromSubmission, getChunkTime, isValidHash, postChunkDecoder, postDecoder, postEncoder, postId, pushComment, setContent, setContentKind, setText, setTitle, submissionFromComment, submissionFromPost, viewCommentArea, viewCommentText, viewMultimedia, viewPost, viewSubmitPost, viewTimestamp)
 import Route exposing (..)
 import Set as S
 import String
@@ -24,6 +24,7 @@ type alias Model =
     { key : Nav.Key
     , url : Url.Url
     , feed : D.Dict String Post
+    , feedDisplay : D.Dict Int (List Post)
     , comments : D.Dict String (D.Dict String Comment)
     , viewing : Maybe Post
     , hidden : S.Set String
@@ -99,6 +100,32 @@ addComment c m =
         }
 
 
+addPost : Int -> Post -> Model -> Model
+addPost chunk p m =
+    if D.member p.id m.feed then
+        m
+
+    else
+        let
+            display =
+                m.feedDisplay
+        in
+        { m
+            | feed = D.insert p.id p m.feed
+            , feedDisplay =
+                let
+                    newChunks =
+                        case D.get chunk display of
+                            Just chunkItems ->
+                                p :: chunkItems
+
+                            Nothing ->
+                                [ p ]
+                in
+                D.insert chunk newChunks display
+        }
+
+
 toggleHidden : String -> Model -> Model
 toggleHidden parent m =
     let
@@ -143,67 +170,14 @@ sortActivity model a b =
             LT
 
 
-similarityThreshold : Float
-similarityThreshold =
-    0.5
-
-
-similarity : String -> String -> Bool
-similarity a b =
-    let
-        aWords =
-            S.fromList (String.words a)
-    in
-    let
-        bWords =
-            S.fromList (String.words b)
-    in
-    toFloat
-        (S.size (S.intersect aWords bWords))
-        / toFloat (max (S.size aWords) (S.size bWords))
-        >= similarityThreshold
-
-
-similarPosts : Model -> Post -> List Post
-similarPosts model p =
-    D.values model.feed |> L.filter (\post -> post.id /= p.id) |> L.filter (\post -> (similarity post.text p.text && post.text /= "") || similarity post.title p.title)
-
-
-uniqueFactor : Model -> Post -> Float
-uniqueFactor model a =
-    let
-        nSimilar =
-            L.length (similarPosts model a)
-    in
-    0.01 * (toFloat (max nSimilar 0) / toFloat (D.size model.feed + 1))
-
-
-sortFactor : Model -> Post -> Float
-sortFactor model a =
-    let
-        timeFactor =
-            0.99 * (toFloat (max (youngestCommentFor a.id model) a.timestamp) / 1682664445.0)
-    in
-    (1 - a.uniqueFactor) + timeFactor
-
-
-sortUnique model a b =
-    case compare (sortFactor model a) (sortFactor model b) of
-        LT ->
-            GT
-
-        EQ ->
-            EQ
-
-        GT ->
-            LT
-
-
 viewPosts : Model -> Html Msg
 viewPosts model =
     div []
-        (D.values model.feed
-            |> L.sortWith (sortActivity model)
+        (D.toList model.feedDisplay
+            |> L.sortBy Tuple.first
+            |> L.reverse
+            |> L.map Tuple.second
+            |> L.concatMap (List.sortWith (sortActivity model))
             |> L.filter (\post -> not (String.isEmpty (String.filter ((/=) ' ') post.title)))
             |> L.filter (\post -> not (L.member post.id susPosts) && not (String.startsWith "fuck you" post.title))
             |> L.filter (\post -> isValidHash (epochs post.timestamp) post.hash)
@@ -335,7 +309,7 @@ init flags url key =
                 |> M.map
                     normalizePostId
     in
-    update (SelectPost normalized) (Model key url (D.fromList []) (D.fromList []) Nothing S.empty (Submission "" "" "" 0 Image) (CommentSubmission "" "" "" Image 0) (Time.millisToPosix 0) "" S.empty True 0)
+    update (SelectPost normalized) (Model key url (D.fromList []) (D.fromList []) (D.fromList []) Nothing S.empty (Submission "" "" "" 0 Image) (CommentSubmission "" "" "" Image 0) (Time.millisToPosix 0) "" S.empty True 0)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -397,13 +371,17 @@ update msg model =
                     ( model, Cmd.none )
 
         PostAdded p ->
-            case JD.decodeValue postDecoder p of
-                Ok post ->
+            case JD.decodeValue postChunkDecoder p of
+                Ok chunk ->
+                    let
+                        post =
+                            chunk.post
+                    in
                     let
                         hashed =
-                            { post | hash = postId (Time.millisToPosix (post.timestamp * 1000)) (submissionFromPost post), uniqueFactor = uniqueFactor model post }
+                            { post | hash = postId (Time.millisToPosix (post.timestamp * 1000)) (submissionFromPost post) }
                     in
-                    ( { model | feed = D.insert post.id hashed model.feed }, getComments post.id )
+                    ( model |> addPost chunk.timestamp post, getComments post.id )
 
                 otherwise ->
                     ( model, Cmd.none )

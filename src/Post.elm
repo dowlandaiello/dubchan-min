@@ -46,6 +46,12 @@ type alias CommentSubmission =
     }
 
 
+type alias PostChunk =
+    { timestamp : Int
+    , post : Post
+    }
+
+
 setTitle : String -> Submission -> Submission
 setTitle s submission =
     { submission | title = s }
@@ -176,6 +182,11 @@ type alias Multimedia =
 type MultimediaKind
     = Image
     | Video
+
+
+postChunkDecoder : Decoder PostChunk
+postChunkDecoder =
+    map2 PostChunk (field "timestamp" int) (field "post" postDecoder)
 
 
 commentDecoder : Decoder Comment

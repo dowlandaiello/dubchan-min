@@ -53,7 +53,6 @@ app.ports.getComments.subscribe((post) => {
 
 const loadChunk = (timestamp) => {
   gun.get('#posts').get({ '.': { '*': timestamp.toString() }}).map().once(async (str, id) => {
-    console.log(str, id);
     try {
       const json = JSON.parse(str);
       const id = await SEA.work(str, null, null, { name: 'SHA-256' });
@@ -66,9 +65,9 @@ const loadChunk = (timestamp) => {
         if (post.content !== null) {
           const rich = { ...sanitized, content: post.content };
 
-          app.ports.postIn.send(rich);
+          app.ports.postIn.send({ timestamp: timestamp, post: rich });
         } else {
-          app.ports.postIn.send(sanitized);
+          app.ports.postIn.send({ timestamp: timestamp, post: sanitized });
         }
       }
     } catch (e) {
