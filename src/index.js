@@ -53,6 +53,7 @@ app.ports.getComments.subscribe((post) => {
 
 const loadChunk = (timestamp) => {
   gun.get('#posts').get({ '.': { '*': timestamp.toString() }}).map().once(async (str, id) => {
+    console.log(str, id);
     try {
       const json = JSON.parse(str);
       const id = await SEA.work(str, null, null, { name: 'SHA-256' });
@@ -99,15 +100,21 @@ app.ports.submitComment.subscribe(async ([comment, parent]) => {
 const feed = document.getElementsByClassName("feedContainer")[0];
 
 setTimeout(() => {
-	feed.addEventListener('scroll', (e) => {
-	  clearTimeout(debounceTimer);
-	  debounceTimer = setTimeout(() => {
-	    if (feed.scrollTop + feed.clientHeight >= feed.scrollHeight * 0.8) {
-	      app.ports.scrolledBottom.send(true);
-	    }
-	  }, scrollDebounce);
-	}, { passive: true });
+  feed.addEventListener('scroll', (e) => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      if (feed.scrollTop + feed.clientHeight >= feed.scrollHeight * 0.8) {
+        app.ports.scrolledBottom.send(true);
+      }
+    }, scrollDebounce);
+  }, { passive: true });
 }, 300);
+
+setTimeout(() => {
+  if (feed.scrollTop + feed.clientHeight >= feed.scrollHeight * 0.8) {
+        app.ports.scrolledBottom.send(true);
+  }
+}, 1000);
 
 window.gun = gun;
 window.sea = SEA;
