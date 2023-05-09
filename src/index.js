@@ -96,14 +96,13 @@ app.ports.submitPost.subscribe(async (post) => {
 });
 
 app.ports.submitComment.subscribe(async ([comment, rawParent]) => {
-  const data = JSON.stringify(comment);
-  const parent = { ...rawParent, id: rawParent.hash };
-  const parentData = JSON.stringify(parent);
-  const hash = await SEA.work(data, null, null, { name: "SHA-256" });
-  const parentHash = await SEA.work(parentData, null, null, { name: "SHA-256" });
+  gun.get('#posts').get(rawParent.id).once(async (parentStr, id) => {
+    const data = JSON.stringify(comment);
+    const hash = await SEA.work(data, null, null, { name: 'SHA-256' });
 
-  gun.get('#comments/' + comment.parent).get(hash).put(data);
-  gun.get('#posts').get(chunk(comment.timestamp) + '#' + parentHash).put(parentData);
+    gun.get('#comments/' + comment.parent).get(hash).put(data);
+    gun.get('#posts').get(chunk(comment.timestamp) + '#' + id).put(parentStr);
+  });
 });
 
 const feed = document.getElementsByClassName("feedContainer")[0];
