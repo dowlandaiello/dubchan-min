@@ -1,10 +1,11 @@
 module Post exposing (..)
 
+import Captcha exposing (Captcha, captchaDecoder, captchaEncoder)
 import Hash exposing (Hash)
 import Html exposing (Html, a, div, h1, iframe, img, input, label, p, text, textarea, video)
 import Html.Attributes exposing (class, controls, for, height, href, id, loop, placeholder, preload, property, src, target, title, value, width)
 import Html.Events exposing (onClick, onInput)
-import Json.Decode as JD exposing (Decoder, Error, field, float, int, list, map2, map3, map5, map7, map8, nullable, string)
+import Json.Decode as JD exposing (Decoder, Error, field, float, int, list, map2, map3, map5, map7, map8, maybe, nullable, string)
 import Json.Decode.Extra exposing (andMap)
 import Json.Encode as JE
 import List as L
@@ -22,9 +23,10 @@ type alias Post =
     , content : Maybe Multimedia
     , comments : Maybe (List Comment)
     , nonce : Int
+    , captcha : Maybe Captcha
     , id : String
     , hash : String
-    , uniqueFactor : Float
+    , prev : Maybe String
     }
 
 
@@ -104,8 +106,8 @@ submissionFromPost p =
     Submission p.title p.text content.src p.nonce content.kind
 
 
-fromSubmission : Int -> Posix -> Submission -> Post
-fromSubmission target time sub =
+fromSubmission : Captcha -> String -> Int -> Posix -> Submission -> Post
+fromSubmission captcha prev target time sub =
     let
         id =
             postId time sub
@@ -122,16 +124,17 @@ fromSubmission target time sub =
             )
             Nothing
             sub.nonce
+            (Just captcha)
             id
             id
-            0.0
+            (Just prev)
 
     else
         let
             nonce =
                 sub.nonce
         in
-        fromSubmission target time { sub | nonce = nonce + 1 }
+        fromSubmission captcha prev target time { sub | nonce = nonce + 1 }
 
 
 commentFromSubmission : Int -> Posix -> CommentSubmission -> Comment
@@ -219,7 +222,21 @@ parseMultimediaKind s =
 
 postEncoder : Post -> JE.Value
 postEncoder p =
-    JE.object [ ( "timestamp", JE.int p.timestamp ), ( "title", JE.string p.title ), ( "text", JE.string p.text ), ( "content", p.content |> M.map multimediaEncoder |> M.withDefault JE.null ), ( "comments", JE.null ), ( "nonce", JE.int p.nonce ), ( "hash", JE.string p.hash ), ( "id", JE.string p.id ) ]
+    let
+        req =
+            [ ( "timestamp", JE.int p.timestamp ), ( "title", JE.string p.title ), ( "text", JE.string p.text ), ( "content", p.content |> M.map multimediaEncoder |> M.withDefault JE.null ), ( "comments", JE.null ), ( "nonce", JE.int p.nonce ), ( "hash", JE.string p.hash ), ( "id", JE.string p.id ) ]
+    in
+    case p.captcha of
+        Just captcha ->
+            case p.prev of
+                Just prev ->
+                    JE.object (( "prev", JE.string prev ) :: ( "captcha", captchaEncoder captcha ) :: req)
+
+                Nothing ->
+                    JE.object req
+
+        Nothing ->
+            JE.object req
 
 
 commentEncoder : Comment -> JE.Value
@@ -263,9 +280,10 @@ postDecoder =
         |> andMap (field "content" (nullable multimediaDecoder))
         |> andMap (field "comments" (nullable (list commentDecoder)))
         |> andMap (field "nonce" int)
+        |> andMap (maybe (field "captcha" captchaDecoder))
         |> andMap (field "id" string)
         |> andMap (field "hash" string)
-        |> andMap (field "uniqueFactor" float)
+        |> andMap (maybe (field "prev" string))
 
 
 showMonth : Month -> String

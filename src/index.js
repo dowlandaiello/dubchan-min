@@ -3,6 +3,7 @@ import { Elm } from './Main.elm';
 import * as serviceWorker from './serviceWorker';
 import GUN from 'gun';
 import SEA from 'gun/sea';
+import captcha from "trek-captcha";
 
 const gun = GUN({peers: ['https://dubchan.herokuapp.com/gun']});
 
@@ -24,7 +25,7 @@ app.ports.loadPost.subscribe((m) => {
     if (postStr !== undefined) {
       try {
         const post = { ...JSON.parse(postStr), id: m, nComments: 0, uniqueFactor: 0.0 };
-        const epoched = { ...post, nonce: post.nonce ?? 0, hash: post.hash ?? "" };
+        const epoched = { ...post, nonce: post.nonce ?? 0, hash: post.hash ?? "", prev: post.prev, captcha: post.captcha };
 
         if (epoched.content === null) {
           app.ports.postLoaded.send({ ...epoched, comments: [] });
@@ -60,7 +61,7 @@ const loadChunk = (timestamp) => {
       // This is a post
       if (json.title !== undefined) {
         const post = json;
-        const sanitized = { timestamp: post.timestamp, title: post.title, text: post.text, id: id, comments: null, content: null, nComments: 0, nonce: post.nonce ?? 0, hash: post.hash ?? "", uniqueFactor: 0.0 };
+        const sanitized = { timestamp: post.timestamp, title: post.title, text: post.text, id: id, comments: null, content: null, nComments: 0, nonce: post.nonce ?? 0, hash: post.hash ?? "", uniqueFactor: 0.0, prev: post.prev, captcha: post.captcha };
 
         if (post.content !== null) {
           const rich = { ...sanitized, content: post.content };
@@ -76,7 +77,15 @@ const loadChunk = (timestamp) => {
   });
 };
 
+const genCaptcha = async () => {
+  const { token, buffer } = await captcha();
+  console.log(token, buffer);
+  //const parsed = { answer: token, data: /captcha.data };
+  //app.ports.gotCaptcha.send(parsed);
+};
+
 app.ports.loadChunk.subscribe(loadChunk);
+app.ports.genCaptcha.subscribe(genCaptcha);
 
 app.ports.submitPost.subscribe(async (post) => {
   const data = JSON.stringify(post);
@@ -115,6 +124,8 @@ setTimeout(() => {
         app.ports.scrolledBottom.send(true);
   }
 }, 1000);
+
+genCaptcha();
 
 window.gun = gun;
 window.sea = SEA;

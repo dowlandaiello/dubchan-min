@@ -33,3 +33,4 @@ type Msg
     | ToggleBlurImages
     | CopyString String
     | ScrolledBottom
+    | GotCaptcha JD.Value

@@ -2,6 +2,7 @@ port module Main exposing (..)
 
 import Browser
 import Browser.Navigation as Nav
+import Captcha exposing (Captcha, captchaDecoder, hash)
 import Dict as D
 import Html exposing (Html, div, h1, img, input, p, text)
 import Html.Attributes exposing (class, placeholder, src, value)
@@ -35,6 +36,8 @@ type alias Model =
     , visibleMedia : S.Set String
     , blurImages : Bool
     , lastChunk : Int
+    , head : Maybe Post
+    , captchaHead : Captcha
     }
 
 
@@ -57,11 +60,11 @@ epochsComments timestamp =
 
 
 verifiedPosts =
-    [ "p207+dcU6eJOzXyIVa6BxJDvBA0unmUXYweQny1SEzI=", "xqtklwedVIZKEL8MpZgWg2ktIPp8FE1FIvCbvG51r04=", "a85JYhmN0WeEP3bDN0JyF6KaNtSu7EjTE4+5pSTGrm4=", "yhKvB2keb6X1U+IeU/LAhppLUCIXRyaDLxkek0T4Ag4=" ]
+    [ "p207+dcU6eJOzXyIVa6BxJDvBA0unmUXYweQny1SEzI=", "xqtklwedVIZKEL8MpZgWg2ktIPp8FE1FIvCbvG51r04=", "a85JYhmN0WeEP3bDN0JyF6KaNtSu7EjTE4+5pSTGrm4=", "yhKvB2keb6X1U+IeU/LAhppLUCIXRyaDLxkek0T4Ag4=", "eAU+0RjyMATQsnI/l8HYl9EYy2Y6dtcokHkZ5UWr8VI=" ]
 
 
 susPosts =
-    [ "atZytiL2hoFVzhtsPAcM9q57iGdHNFF0dbk6VQf+TqM=" ]
+    [ "atZytiL2hoFVzhtsPAcM9q57iGdHNFF0dbk6VQf+TqM=", "8tAA5rNHiaWrOs+rIRhJLOjqgNb2qxIT1AuMASg+1Rg=", "LJrSVEm9XaAO7Y8hN4PvHOLYGnC5ZIaJamsON4vx5YY=", "hQt7sBdkuJMRI0VJ7pBW2m01jeaAGVs3JBDLPZ9QLaY=" ]
 
 
 setSubmission : Submission -> Model -> Model
@@ -102,6 +105,10 @@ addComment c m =
 
 addPost : Int -> Post -> Model -> Model
 addPost chunk p m =
+    let
+        _ =
+            Debug.log "" (p.id ++ " " ++ p.title ++ " " ++ String.fromInt p.timestamp)
+    in
     if D.member p.id m.feed then
         m
 
@@ -123,6 +130,17 @@ addPost chunk p m =
                                 [ p ]
                 in
                 D.insert chunk newChunks display
+            , head =
+                case m.head of
+                    Just head ->
+                        if p.timestamp > head.timestamp then
+                            Just p
+
+                        else
+                            Just head
+
+                    Nothing ->
+                        Just p
         }
 
 
@@ -294,7 +312,7 @@ normalizePostId id =
 viewQuickLinks : Html Msg
 viewQuickLinks =
     div [ class "linksArea" ]
-        [ p [ onClick (SelectPost (Just "p207+dcU6eJOzXyIVa6BxJDvBA0unmUXYweQny1SEzI=")) ] [ text "About" ], p [ onClick (SelectPost (Just "yhKvB2keb6X1U+IeU/LAhppLUCIXRyaDLxkek0T4Ag4=")) ] [ text "Contact" ], p [ onClick (SelectPost (Just "xqtklwedVIZKEL8MpZgWg2ktIPp8FE1FIvCbvG51r04=")) ] [ text "Donations" ], p [ onClick (SelectPost (Just "a85JYhmN0WeEP3bDN0JyF6KaNtSu7EjTE4+5pSTGrm4=")) ] [ text "Discord" ] ]
+        [ p [ onClick (SelectPost (Just "p207+dcU6eJOzXyIVa6BxJDvBA0unmUXYweQny1SEzI=")) ] [ text "About" ], p [ onClick (SelectPost (Just "yhKvB2keb6X1U+IeU/LAhppLUCIXRyaDLxkek0T4Ag4=")) ] [ text "Contact" ], p [ onClick (SelectPost (Just "xqtklwedVIZKEL8MpZgWg2ktIPp8FE1FIvCbvG51r04=")) ] [ text "Donations" ], p [ onClick (SelectPost (Just "eAU+0RjyMATQsnI/l8HYl9EYy2Y6dtcokHkZ5UWr8VI=")) ] [ text "Discord" ] ]
 
 
 init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
@@ -309,7 +327,7 @@ init flags url key =
                 |> M.map
                     normalizePostId
     in
-    update (SelectPost normalized) (Model key url (D.fromList []) (D.fromList []) (D.fromList []) Nothing S.empty (Submission "" "" "" 0 Image) (CommentSubmission "" "" "" Image 0) (Time.millisToPosix 0) "" S.empty True 0)
+    update (SelectPost normalized) (Model key url (D.fromList []) (D.fromList []) (D.fromList []) Nothing S.empty (Submission "" "" "" 0 Image) (CommentSubmission "" "" "" Image 0) (Time.millisToPosix 0) "" S.empty True 0 Nothing { answer = "", data = "" })
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -402,7 +420,12 @@ update msg model =
             ( model |> setSubmission (model.submission |> setContentKind Video), Cmd.none )
 
         SubmitPost ->
-            ( model |> setSubmission (Submission "" "" "" 0 Image), model.submission |> fromSubmission (Time.posixToMillis model.time // 1000 |> epochs) model.time |> postEncoder |> submitPost )
+            case model.head of
+                Just head ->
+                    ( model |> setSubmission (Submission "" "" "" 0 Image), Cmd.batch [ model.submission |> fromSubmission model.captchaHead head.id (Time.posixToMillis model.time // 1000 |> epochs) model.time |> postEncoder |> submitPost, genCaptcha () ] )
+
+                Nothing ->
+                    ( model, Cmd.none )
 
         ChangeSubCommentText s ->
             let
@@ -418,7 +441,7 @@ update msg model =
                         vJson =
                             postEncoder viewing
                     in
-                    ( model |> setCommentSubmission (CommentSubmission "" "" "" Image 0), model.commentSubmission |> commentFromSubmission (epochsComments (Time.posixToMillis model.time // 1000)) model.time |> commentEncoder |> (\cJson -> JE.list identity [ cJson, vJson ]) |> submitComment )
+                    ( model |> setCommentSubmission (CommentSubmission "" "" "" Image 0), Cmd.batch [ model.commentSubmission |> commentFromSubmission (epochsComments (Time.posixToMillis model.time // 1000)) model.time |> commentEncoder |> (\cJson -> JE.list identity [ cJson, vJson ]) |> submitComment, genCaptcha () ] )
 
                 Nothing ->
                     ( model |> setCommentSubmission (CommentSubmission "" "" "" Image 0), Cmd.none )
@@ -514,6 +537,14 @@ update msg model =
             in
             ( { model | lastChunk = newChunk }, loadChunk newChunk )
 
+        GotCaptcha captchaJson ->
+            case JD.decodeValue captchaDecoder captchaJson of
+                Ok captcha ->
+                    ( { model | captchaHead = captcha |> hash }, Cmd.none )
+
+                Err _ ->
+                    ( model, Cmd.none )
+
 
 port loadPost : String -> Cmd msg
 
@@ -543,6 +574,12 @@ port loadChunk : Int -> Cmd msg
 
 
 port scrolledBottom : (JE.Value -> msg) -> Sub msg
+
+
+port genCaptcha : () -> Cmd msg
+
+
+port gotCaptcha : (JE.Value -> msg) -> Sub msg
 
 
 view : Model -> Browser.Document Msg
@@ -611,7 +648,7 @@ view model =
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    Sub.batch [ postLoaded PostLoaded, postIn PostAdded, commentIn CommentAdded, scrolledBottom (always ScrolledBottom), Time.every 1 Tick ]
+    Sub.batch [ postLoaded PostLoaded, postIn PostAdded, commentIn CommentAdded, scrolledBottom (always ScrolledBottom), gotCaptcha GotCaptcha, Time.every 1 Tick ]
 
 
 main : Program () Model Msg
