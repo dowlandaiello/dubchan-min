@@ -34,3 +34,4 @@ type Msg
     | CopyString String
     | ScrolledBottom
     | GotCaptcha JD.Value
+    | NewQuote String

@@ -13,6 +13,7 @@ import List as L
 import Maybe as M
 import Msg exposing (Msg(..))
 import Post exposing (Comment, CommentSubmission, MultimediaKind(..), Post, Submission, commentDecoder, commentEncoder, commentFromSubmission, commentId, descending, fromSubmission, getChunkTime, isValidHash, postChunkDecoder, postDecoder, postEncoder, postId, pushComment, setContent, setContentKind, setText, setTitle, submissionFromComment, submissionFromPost, viewCommentArea, viewCommentText, viewMultimedia, viewPost, viewSubmitPost, viewTimestamp)
+import Random
 import Route exposing (..)
 import Set as S
 import String
@@ -38,6 +39,7 @@ type alias Model =
     , lastChunk : Int
     , head : Maybe Post
     , captchaHead : Captcha
+    , qotd : String
     }
 
 
@@ -64,7 +66,23 @@ verifiedPosts =
 
 
 susPosts =
-    [ "atZytiL2hoFVzhtsPAcM9q57iGdHNFF0dbk6VQf+TqM=", "8tAA5rNHiaWrOs+rIRhJLOjqgNb2qxIT1AuMASg+1Rg=", "LJrSVEm9XaAO7Y8hN4PvHOLYGnC5ZIaJamsON4vx5YY=", "hQt7sBdkuJMRI0VJ7pBW2m01jeaAGVs3JBDLPZ9QLaY=" ]
+    [ "atZytiL2hoFVzhtsPAcM9q57iGdHNFF0dbk6VQf+TqM=", "8tAA5rNHiaWrOs+rIRhJLOjqgNb2qxIT1AuMASg+1Rg=", "LJrSVEm9XaAO7Y8hN4PvHOLYGnC5ZIaJamsON4vx5YY=", "hQt7sBdkuJMRI0VJ7pBW2m01jeaAGVs3JBDLPZ9QLaY=", "Xb0QMuARwBEIbP+DUyeywdtHKIzKb9ax2VajN47gjUs=", "bAYLk1YbUHySKEB5VU3KgEq9DzxvAR3V8c2Fg+k+zFo=", "LMx3pwHFkIWbYwVVlEHdD3B1kK0Tr+ZLN4biC6GB8uA=" ]
+
+
+quotes =
+    [ "This isn't a dick pic. This is a cloudy image of someone holding a hamburger in the shower"
+    , "If you haven't seen my dick you need to lurk more"
+    , "this is offensive to women"
+    , "Shat myself during a party 😳😳"
+    , "I will unironically go I want to meet the shower pics guy"
+    , "fuck you128"
+    , "Appreciate the service but developer would probably be better off using php."
+    , "i have no friends and now i'm also an alcoholic"
+    , "The only good transphobic fascist is a dead one!"
+    , "Who wants to see me cum"
+    , "I have a headache every time I think about cooking. Any trad wife candidate looking for a husband? I'll earn a lot of money."
+    , "bro literally went on a date with a catboy this is not earth shattering news to me"
+    ]
 
 
 setSubmission : Submission -> Model -> Model
@@ -105,10 +123,6 @@ addComment c m =
 
 addPost : Int -> Post -> Model -> Model
 addPost chunk p m =
-    let
-        _ =
-            Debug.log "" (p.id ++ " " ++ p.title ++ " " ++ String.fromInt p.timestamp)
-    in
     if D.member p.id m.feed then
         m
 
@@ -309,6 +323,11 @@ normalizePostId id =
         id ++ "="
 
 
+viewQotd : Model -> Html Msg
+viewQotd m =
+    p [ class "qotd" ] [ text m.qotd ]
+
+
 viewQuickLinks : Html Msg
 viewQuickLinks =
     div [ class "linksArea" ]
@@ -327,7 +346,20 @@ init flags url key =
                 |> M.map
                     normalizePostId
     in
-    update (SelectPost normalized) (Model key url (D.fromList []) (D.fromList []) (D.fromList []) Nothing S.empty (Submission "" "" "" 0 Image) (CommentSubmission "" "" "" Image 0) (Time.millisToPosix 0) "" S.empty True 0 Nothing { answer = "", data = "" })
+    let
+        loadCmd =
+            [ Random.generate NewQuote (Random.int 0 (L.length quotes) |> Random.map (\i -> L.take i quotes |> L.reverse |> L.head |> M.withDefault "")) ]
+    in
+    let
+        model =
+            Model key url (D.fromList []) (D.fromList []) (D.fromList []) Nothing S.empty (Submission "" "" "" 0 Image) (CommentSubmission "" "" "" Image 0) (Time.millisToPosix 0) "" S.empty True 0 Nothing { answer = "", data = "" } ""
+    in
+    case normalized of
+        Just post ->
+            ( { model | commentSubmission = { text = "", parent = post, content = "", contentKind = Image, nonce = 0 } }, Cmd.batch ([ loadPost post, getComments post ] ++ loadCmd) )
+
+        Nothing ->
+            ( { model | viewing = Nothing }, Cmd.batch loadCmd )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -545,6 +577,9 @@ update msg model =
                 Err _ ->
                     ( model, Cmd.none )
 
+        NewQuote q ->
+            ( { model | qotd = q }, Cmd.none )
+
 
 port loadPost : String -> Cmd msg
 
@@ -606,6 +641,7 @@ view model =
                         )
                         [ div [ class "logo" ] [ img [ src "/logo.png" ] [], div [ class "logoText" ] [ h1 [] [ text "DubChan" ], p [] [ text "Anonymous. Unmoderated." ] ] ]
                         , viewQuickLinks
+                        , viewQotd model
                         , viewSubmitPost model.submission
                         , div [ class "feedControls" ]
                             [ viewSearch model.searchQuery
