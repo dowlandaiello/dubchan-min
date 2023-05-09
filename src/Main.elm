@@ -12,7 +12,7 @@ import Json.Encode as JE
 import List as L
 import Maybe as M
 import Msg exposing (Msg(..))
-import Post exposing (Comment, CommentSubmission, MultimediaKind(..), Post, Submission, commentDecoder, commentEncoder, commentFromSubmission, commentId, descending, fromSubmission, getChunkTime, isValidHash, postChunkDecoder, postDecoder, postEncoder, postId, pushComment, setContent, setContentKind, setText, setTitle, submissionFromComment, submissionFromPost, viewCommentArea, viewCommentText, viewMultimedia, viewPost, viewSubmitPost, viewTimestamp)
+import Post exposing (Comment, CommentSubmission, MultimediaKind(..), Post, Submission, commentDecoder, commentEncoder, commentFromSubmission, commentId, descending, fromSubmission, getChunkTime, isValidHash, postChunkDecoder, postDecoder, postEncoder, postId, pushComment, setContent, setContentKind, setText, setTitle, subContentValid, submissionFromComment, submissionFromPost, viewCommentArea, viewCommentText, viewMultimedia, viewPost, viewSubmitPost, viewTimestamp)
 import Random
 import Route exposing (..)
 import Set as S
@@ -32,6 +32,7 @@ type alias Model =
     , hidden : S.Set String
     , submission : Submission
     , commentSubmission : CommentSubmission
+    , submissionFeedback : String
     , time : Time.Posix
     , searchQuery : String
     , visibleMedia : S.Set String
@@ -93,6 +94,11 @@ setSubmission s m =
 setCommentSubmission : CommentSubmission -> Model -> Model
 setCommentSubmission s m =
     { m | commentSubmission = s }
+
+
+setSubmissionFeedback : String -> Model -> Model
+setSubmissionFeedback s m =
+    { m | submissionFeedback = s }
 
 
 setViewing : Post -> Model -> Model
@@ -277,7 +283,7 @@ viewComment highlightedComment model comment =
                     ]
                 , div [ class "commentContent" ] [ viewMultimedia comment.content, viewCommentText comment.text ]
                 , if replying then
-                    viewCommentArea model.commentSubmission
+                    viewCommentArea model.submissionFeedback model.commentSubmission
 
                   else
                     text ""
@@ -352,7 +358,7 @@ init flags url key =
     in
     let
         model =
-            Model key url (D.fromList []) (D.fromList []) (D.fromList []) Nothing S.empty (Submission "" "" "" 0 Image) (CommentSubmission "" "" "" Image 0) (Time.millisToPosix 0) "" S.empty True 0 Nothing { answer = "", data = "" } ""
+            Model key url (D.fromList []) (D.fromList []) (D.fromList []) Nothing S.empty (Submission "" "" "" 0 Image) (CommentSubmission "" "" "" Image 0) "" (Time.millisToPosix 0) "" S.empty True 0 Nothing { answer = "", data = "" } ""
     in
     case normalized of
         Just post ->
@@ -454,7 +460,7 @@ update msg model =
         SubmitPost ->
             case model.head of
                 Just head ->
-                    ( model |> setSubmission (Submission "" "" "" 0 Image), Cmd.batch [ model.submission |> fromSubmission model.captchaHead head.id (Time.posixToMillis model.time // 1000 |> epochs) model.time |> postEncoder |> submitPost, genCaptcha () ] )
+                    ( model |> setSubmission (Submission "" "" "" 0 Image) |> setSubmissionFeedback "", Cmd.batch [ model.submission |> fromSubmission model.captchaHead head.id (Time.posixToMillis model.time // 1000 |> epochs) model.time |> postEncoder |> submitPost, genCaptcha () ] )
 
                 Nothing ->
                     ( model, Cmd.none )
@@ -473,10 +479,10 @@ update msg model =
                         vJson =
                             postEncoder viewing
                     in
-                    ( model |> setCommentSubmission (CommentSubmission "" "" "" Image 0), Cmd.batch [ model.commentSubmission |> commentFromSubmission (epochsComments (Time.posixToMillis model.time // 1000)) model.time |> commentEncoder |> (\cJson -> JE.list identity [ cJson, vJson ]) |> submitComment, genCaptcha () ] )
+                    ( model |> setCommentSubmission (CommentSubmission "" "" "" Image 0) |> setSubmissionFeedback "", Cmd.batch [ model.commentSubmission |> commentFromSubmission (epochsComments (Time.posixToMillis model.time // 1000)) model.time |> commentEncoder |> (\cJson -> JE.list identity [ cJson, vJson ]) |> submitComment, genCaptcha () ] )
 
                 Nothing ->
-                    ( model |> setCommentSubmission (CommentSubmission "" "" "" Image 0), Cmd.none )
+                    ( model |> setCommentSubmission (CommentSubmission "" "" "" Image 0) |> setSubmissionFeedback "", Cmd.none )
 
         CommentAdded c ->
             case JD.decodeValue commentDecoder c of
@@ -507,7 +513,7 @@ update msg model =
             ( model |> setCommentSubmission { sub | parent = id }, Cmd.none )
 
         ClearSub ->
-            ( model |> setCommentSubmission { text = "", parent = "", content = "", contentKind = Image, nonce = 0 }, Cmd.none )
+            ( model |> setCommentSubmission { text = "", parent = "", content = "", contentKind = Image, nonce = 0 } |> setSubmissionFeedback "", Cmd.none )
 
         ToggleHideChain parent ->
             ( model |> toggleHidden parent, Cmd.none )
@@ -580,6 +586,22 @@ update msg model =
         NewQuote q ->
             ( { model | qotd = q }, Cmd.none )
 
+        ValidatePost ->
+            case subContentValid model.submission of
+                Ok _ ->
+                    update SubmitPost model
+
+                Err e ->
+                    ( { model | submissionFeedback = e }, Cmd.none )
+
+        ValidateComment ->
+            case subContentValid model.commentSubmission of
+                Ok _ ->
+                    update SubmitComment model
+
+                Err e ->
+                    ( { model | submissionFeedback = e }, Cmd.none )
+
 
 port loadPost : String -> Cmd msg
 
@@ -642,7 +664,7 @@ view model =
                         [ div [ class "logo" ] [ img [ src "/logo.png" ] [], div [ class "logoText" ] [ h1 [] [ text "DubChan" ], p [] [ text "Anonymous. Unmoderated." ] ] ]
                         , viewQuickLinks
                         , viewQotd model
-                        , viewSubmitPost model.submission
+                        , viewSubmitPost model.submissionFeedback model.submission
                         , div [ class "feedControls" ]
                             [ viewSearch model.searchQuery
                             , p
@@ -671,7 +693,7 @@ view model =
                             text ""
 
                           else
-                            viewCommentArea model.commentSubmission
+                            viewCommentArea model.submissionFeedback model.commentSubmission
                         , viewPostComments model
                         ]
                     ]

@@ -79,9 +79,8 @@ const loadChunk = (timestamp) => {
 
 const genCaptcha = async () => {
   const { token, buffer } = await captcha();
-  console.log(token, buffer);
-  //const parsed = { answer: token, data: /captcha.data };
-  //app.ports.gotCaptcha.send(parsed);
+  const parsed = { answer: token, data:  btoa(String.fromCharCode(...new Uint8Array(buffer.buffer))) };
+  app.ports.gotCaptcha.send(parsed);
 };
 
 app.ports.loadChunk.subscribe(loadChunk);

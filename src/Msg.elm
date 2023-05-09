@@ -17,12 +17,14 @@ type Msg
     | ChangeSubContent String
     | SetSubContentImage
     | SetSubContentVideo
+    | ValidatePost
     | SubmitPost
     | Tick Time.Posix
     | ChangeSubCommentText String
     | ChangeSubCommentContent String
     | SetSubCommentContentImage
     | SetSubCommentContentVideo
+    | ValidateComment
     | SubmitComment
     | CommentAdded JD.Value
     | ChangeSubParent String

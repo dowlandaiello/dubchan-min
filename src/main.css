@@ -184,7 +184,7 @@ body {
   left: 50%;
   transform: translate(-50%, -50%);
 
-  z-index: 3;
+  z-index: 1;
 }
 
 .content {
@@ -422,6 +422,11 @@ body {
   width: 100%;
 }
 
+.feedback {
+  opacity: 0.6;
+  color: #eb4034;
+}
+
 .mediaSelector {
   display: flex;
 
@@ -563,6 +568,13 @@ body {
 
 .viewerBody .postAction {
   display: none;
+}
+
+.commentDrawerArea {
+  display: flex;
+  flex-flow: column nowrap;
+  justify-content: flex-start;
+  align-items: stretch;
 }
 
 .commentInputArea {

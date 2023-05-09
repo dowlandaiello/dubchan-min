@@ -74,6 +74,15 @@ setContentKind s submission =
     { submission | contentKind = s }
 
 
+subContentValid : { a | content : String } -> Result String ()
+subContentValid s =
+    if s.content /= "" && not (S.startsWith "http://" s.content) && not (S.startsWith "https://" s.content) then
+        Err "Attachment must be a link starting with http:// or https://"
+
+    else
+        Ok ()
+
+
 pushComment : Comment -> Post -> Post
 pushComment c p =
     case p.comments of
@@ -587,39 +596,46 @@ viewPost blurred nComments verified post =
         ]
 
 
-viewCommentArea : CommentSubmission -> Html Msg
-viewCommentArea submission =
-    div [ class "commentInputArea" ]
-        [ div [ class "commentInputs" ]
-            [ textarea [ class "commentInput", placeholder "Post a reply", onInput ChangeSubCommentText, value submission.text ] []
-            , div [ class "commentContentInput" ]
-                [ input [ placeholder "Link an attachment", onInput ChangeSubCommentContent, value submission.content ] []
-                , p
-                    [ onClick SetSubCommentContentImage
-                    , if submission.contentKind == Image then
-                        class "active"
+viewCommentArea : String -> CommentSubmission -> Html Msg
+viewCommentArea feedback submission =
+    div [ class "commentDrawerArea" ]
+        [ div [ class "commentInputArea" ]
+            [ div [ class "commentInputs" ]
+                [ textarea [ class "commentInput", placeholder "Post a reply", onInput ChangeSubCommentText, value submission.text ] []
+                , div [ class "commentContentInput" ]
+                    [ input [ placeholder "Link an attachment", onInput ChangeSubCommentContent, value submission.content ] []
+                    , p
+                        [ onClick SetSubCommentContentImage
+                        , if submission.contentKind == Image then
+                            class "active"
 
-                      else
-                        class ""
-                    ]
-                    [ text "image" ]
-                , p
-                    [ onClick SetSubCommentContentVideo
-                    , if submission.contentKind == Video then
-                        class "active"
+                          else
+                            class ""
+                        ]
+                        [ text "image" ]
+                    , p
+                        [ onClick SetSubCommentContentVideo
+                        , if submission.contentKind == Video then
+                            class "active"
 
-                      else
-                        class ""
+                          else
+                            class ""
+                        ]
+                        [ text "video" ]
                     ]
-                    [ text "video" ]
                 ]
+            , div [ class "commentInputActions" ] [ img [ onClick ClearSub, class "cancel", src "/trash.svg" ] [], p [ onClick ValidateComment ] [ text "Submit" ] ]
             ]
-        , div [ class "commentInputActions" ] [ img [ onClick ClearSub, class "cancel", src "/trash.svg" ] [], p [ onClick SubmitComment ] [ text "Submit" ] ]
+        , if feedback /= "" then
+            p [ class "feedback" ] [ text feedback ]
+
+          else
+            text ""
         ]
 
 
-viewSubmitPost : Submission -> Html Msg
-viewSubmitPost submission =
+viewSubmitPost : String -> Submission -> Html Msg
+viewSubmitPost feedback submission =
     div [ class "submitArea" ]
         [ h1 [] [ text "New Post" ]
         , input [ id "titleInput", placeholder "Post Title", onInput ChangeSubTitle, value submission.title ] []
@@ -654,5 +670,10 @@ viewSubmitPost submission =
                     ]
                 ]
             ]
-        , p [ onClick SubmitPost, class "submit" ] [ text "Submit" ]
+        , if feedback /= "" then
+            p [ class "feedback" ] [ text ("Error: " ++ feedback) ]
+
+          else
+            text ""
+        , p [ onClick ValidatePost, class "submit" ] [ text "Submit" ]
         ]
