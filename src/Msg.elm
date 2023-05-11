@@ -37,3 +37,6 @@ type Msg
     | ScrolledBottom
     | GotCaptcha JD.Value
     | NewQuote String
+    | RefreshPostCaptcha
+    | LoadedCaptcha JD.Value
+    | ChangeSubCaptchaAnswer String

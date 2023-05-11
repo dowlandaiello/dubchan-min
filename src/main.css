@@ -18,6 +18,16 @@ body {
   background-color: #09071C;
 }
 
+#captchaGen {
+  pointer-events: none;
+  opacity: 0;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 730px;
+  height: 146px;
+}
+
 ::-webkit-scrollbar {
   width: 5px;
   border-radius: 5px;
@@ -399,6 +409,17 @@ body {
   font-size: 1em;
 
   margin-bottom: 1em;
+}
+
+.captchaInput {
+  display: flex;
+  flex-flow: column nowrap;
+  justify-content: flex-start;
+  align-items: stretch;
+}
+
+.captchaInput input {
+  margin-top: 0.5em;
 }
 
 .bodyInputArea {

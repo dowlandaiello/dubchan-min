@@ -35,7 +35,6 @@ type alias Submission =
     { title : String
     , text : String
     , content : String
-    , captchaAnswer : String
     , nonce : Int
     , contentKind : MultimediaKind
     }
@@ -114,7 +113,7 @@ submissionFromPost p =
         content =
             M.withDefault (Multimedia "" Image) p.content
     in
-    Submission p.title p.text content.src (M.withDefault "" p.captchaAnswer) p.nonce content.kind
+    Submission p.title p.text content.src p.nonce content.kind
 
 
 fromSubmission : Captcha -> String -> Int -> Posix -> Submission -> Post
@@ -136,7 +135,7 @@ fromSubmission captcha prev target time sub =
             Nothing
             sub.nonce
             (Just captcha)
-            (Just sub.captchaAnswer)
+            Nothing
             id
             id
             (Just prev)
@@ -638,8 +637,8 @@ viewCommentArea feedback submission =
         ]
 
 
-viewSubmitPost : String -> Submission -> Html Msg
-viewSubmitPost feedback submission =
+viewSubmitPost : String -> String -> String -> Submission -> Html Msg
+viewSubmitPost captcha captchaAnswer feedback submission =
     div [ class "submitArea" ]
         [ h1 [] [ text "New Post" ]
         , input [ id "titleInput", placeholder "Post Title", onInput ChangeSubTitle, value submission.title ] []
@@ -674,10 +673,19 @@ viewSubmitPost feedback submission =
                     ]
                 ]
             ]
+        , if captcha /= "" then
+            div [ class "captchaInput" ] [ img [ src captcha ] [], input [ placeholder "Captcha answer", onInput ChangeSubCaptchaAnswer, value captchaAnswer ] [] ]
+
+          else
+            text ""
         , if feedback /= "" then
             p [ class "feedback" ] [ text ("Error: " ++ feedback) ]
 
           else
             text ""
-        , p [ onClick ValidatePost, class "submit" ] [ text "Submit" ]
+        , if captcha /= "" then
+            p [ onClick SubmitPost, class "submit" ] [ text "Submit" ]
+
+          else
+            p [ onClick ValidatePost, class "submit" ] [ text "Next" ]
         ]

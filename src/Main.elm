@@ -4,8 +4,8 @@ import Browser
 import Browser.Navigation as Nav
 import Captcha exposing (Captcha, captchaDecoder, hash)
 import Dict as D
-import Html exposing (Html, div, h1, img, input, p, text)
-import Html.Attributes exposing (class, placeholder, src, value)
+import Html exposing (Html, canvas, div, h1, img, input, p, text)
+import Html.Attributes exposing (class, id, placeholder, src, value)
 import Html.Events exposing (onClick, onInput)
 import Json.Decode as JD
 import Json.Encode as JE
@@ -34,10 +34,10 @@ type alias Model =
 type alias SubmissionInfo =
     { submission : Submission
     , commentSubmission : CommentSubmission
+    , submitting : Maybe Post
     , submissionFeedback : String
     , head : Maybe Post
     , captchaHead : Captcha
-    , captchaSolve : String
     }
 
 
@@ -50,6 +50,7 @@ type alias FeedInfo =
     , feed : D.Dict String Post
     , feedDisplay : D.Dict Int (List Post)
     , comments : D.Dict String (D.Dict String Comment)
+    , captchas : D.Dict String Captcha
     , viewing : Maybe Post
     , hidden : S.Set String
     }
@@ -122,9 +123,23 @@ setVisibleMedia s m =
     { m | visibleMedia = s }
 
 
+setCaptcha : String -> Captcha -> FeedInfo -> FeedInfo
+setCaptcha p c m =
+    let
+        captchas =
+            m.captchas
+    in
+    { m | captchas = D.insert p c captchas }
+
+
 setBlurImages : Bool -> FeedInfo -> FeedInfo
 setBlurImages b m =
     { m | blurImages = b }
+
+
+setCaptchaAnswer : String -> Post -> Post
+setCaptchaAnswer s p =
+    { p | captchaAnswer = Just s }
 
 
 setLastChunk : Int -> FeedInfo -> FeedInfo
@@ -135,6 +150,11 @@ setLastChunk c m =
 setSubmission : Submission -> SubmissionInfo -> SubmissionInfo
 setSubmission s m =
     { m | submission = s }
+
+
+setSubmitting : Maybe Post -> SubmissionInfo -> SubmissionInfo
+setSubmitting s m =
+    { m | submitting = s }
 
 
 setCommentSubmission : CommentSubmission -> SubmissionInfo -> SubmissionInfo
@@ -438,7 +458,7 @@ init flags url key =
     in
     let
         model =
-            Model key url (SubmissionInfo (Submission "" "" "" "" 0 Image) (CommentSubmission "" "" "" Image 0) "" Nothing (Captcha "" "") "") (FeedInfo "" S.empty True 0 "" (D.fromList []) (D.fromList []) (D.fromList []) Nothing S.empty) (Time.millisToPosix 0)
+            Model key url (SubmissionInfo (Submission "" "" "" 0 Image) (CommentSubmission "" "" "" Image 0) Nothing "" Nothing (Captcha "" "")) (FeedInfo "" S.empty True 0 "" (D.fromList []) (D.fromList []) (D.fromList []) (D.fromList []) Nothing S.empty) (Time.millisToPosix 0)
     in
     case normalized of
         Just post ->
@@ -540,7 +560,12 @@ update msg model =
         SubmitPost ->
             case model.subInfo.head of
                 Just head ->
-                    ( model |> setSubmissionInfo (model.subInfo |> setSubmission (Submission "" "" "" "" 0 Image) |> setSubmissionFeedback ""), Cmd.batch [ model.subInfo.submission |> fromSubmission model.subInfo.captchaHead head.id (Time.posixToMillis model.time // 1000 |> epochs) model.time |> postEncoder |> submitPost, genCaptcha () ] )
+                    case model.subInfo.submitting of
+                        Just submitting ->
+                            ( model |> setSubmissionInfo (model.subInfo |> setSubmission (Submission "" "" "" 0 Image) |> setSubmitting Nothing |> setSubmissionFeedback ""), Cmd.batch [ submitting |> postEncoder |> submitPost, genCaptcha () ] )
+
+                        Nothing ->
+                            ( model, Cmd.none )
 
                 Nothing ->
                     ( model, Cmd.none )
@@ -593,7 +618,7 @@ update msg model =
             ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission { sub | parent = id }), Cmd.none )
 
         ClearSub ->
-            ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission { text = "", parent = "", content = "", contentKind = Image, nonce = 0 } |> setSubmissionFeedback ""), Cmd.none )
+            ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission { text = "", parent = "", content = "", contentKind = Image, nonce = 0 } |> setSubmitting Nothing |> setSubmissionFeedback ""), Cmd.none )
 
         ToggleHideChain parent ->
             ( model |> toggleHidden parent, Cmd.none )
@@ -672,7 +697,16 @@ update msg model =
         ValidatePost ->
             case subContentValid model.subInfo.submission of
                 Ok _ ->
-                    update SubmitPost model
+                    case model.subInfo.head of
+                        Just head ->
+                            let
+                                submitting =
+                                    model.subInfo.submission |> fromSubmission model.subInfo.captchaHead head.id (Time.posixToMillis model.time // 1000 |> epochs) model.time
+                            in
+                            update RefreshPostCaptcha (model |> setSubmissionInfo (model.subInfo |> setSubmitting (Just submitting)))
+
+                        Nothing ->
+                            ( model |> setSubmissionInfo (model.subInfo |> setSubmissionFeedback "No previous post to attach to."), Cmd.none )
 
                 Err e ->
                     ( model |> setSubmissionInfo (model.subInfo |> setSubmissionFeedback e), Cmd.none )
@@ -684,6 +718,43 @@ update msg model =
 
                 Err e ->
                     ( model |> setSubmissionInfo (model.subInfo |> setSubmissionFeedback e), Cmd.none )
+
+        RefreshPostCaptcha ->
+            case model.subInfo.submitting of
+                Just submitting ->
+                    ( model, loadCaptcha (submitting |> postEncoder) )
+
+                Nothing ->
+                    ( model, Cmd.none )
+
+        LoadedCaptcha captchaJson ->
+            case JD.decodeValue captchaDecoder captchaJson of
+                Ok captcha ->
+                    case model.subInfo.submitting of
+                        Just submitting ->
+                            ( model |> setFeedInfo (model.feedInfo |> setCaptcha submitting.id captcha), Cmd.none )
+
+                        Nothing ->
+                            ( model, Cmd.none )
+
+                Err _ ->
+                    ( model, Cmd.none )
+
+        ChangeSubCaptchaAnswer answer ->
+            ( model
+                |> setSubmissionInfo
+                    (model.subInfo
+                        |> setSubmitting
+                            (case model.subInfo.submitting of
+                                Just submitting ->
+                                    Just (submitting |> setCaptchaAnswer answer)
+
+                                Nothing ->
+                                    model.subInfo.submitting
+                            )
+                    )
+            , Cmd.none
+            )
 
 
 port loadPost : String -> Cmd msg
@@ -722,6 +793,12 @@ port genCaptcha : () -> Cmd msg
 port gotCaptcha : (JE.Value -> msg) -> Sub msg
 
 
+port loadCaptcha : JE.Value -> Cmd msg
+
+
+port loadedCaptcha : (JE.Value -> msg) -> Sub msg
+
+
 view : Model -> Browser.Document Msg
 view model =
     { title = "DubChan"
@@ -747,7 +824,8 @@ view model =
                         [ div [ class "logo" ] [ img [ src "/logo.png" ] [], div [ class "logoText" ] [ h1 [] [ text "DubChan" ], p [] [ text "Anonymous. Unmoderated." ] ] ]
                         , viewQuickLinks
                         , viewQotd model
-                        , viewSubmitPost model.subInfo.submissionFeedback model.subInfo.submission
+                        , viewSubmitPost (model.subInfo.submitting |> M.map .id |> M.andThen (\id -> D.get id model.feedInfo.captchas |> M.map .data) |> M.withDefault "") (model.subInfo.submitting |> M.andThen .captchaAnswer |> M.withDefault "") model.subInfo.submissionFeedback model.subInfo.submission
+                        , canvas [ id "captchaGen" ] []
                         , div [ class "feedControls" ]
                             [ viewSearch model.feedInfo.searchQuery
                             , p
@@ -789,7 +867,7 @@ view model =
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    Sub.batch [ postLoaded PostLoaded, postIn PostAdded, commentIn CommentAdded, scrolledBottom (always ScrolledBottom), gotCaptcha GotCaptcha, Time.every 1 Tick ]
+    Sub.batch [ postLoaded PostLoaded, postIn PostAdded, commentIn CommentAdded, scrolledBottom (always ScrolledBottom), gotCaptcha GotCaptcha, loadedCaptcha LoadedCaptcha, Time.every 1 Tick ]
 
 
 main : Program () Model Msg
