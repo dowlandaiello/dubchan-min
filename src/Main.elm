@@ -25,22 +25,33 @@ import Url.Parser exposing (parse, query)
 type alias Model =
     { key : Nav.Key
     , url : Url.Url
+    , subInfo : SubmissionInfo
+    , feedInfo : FeedInfo
+    , time : Time.Posix
+    }
+
+
+type alias SubmissionInfo =
+    { submission : Submission
+    , commentSubmission : CommentSubmission
+    , submissionFeedback : String
+    , head : Maybe Post
+    , captchaHead : Captcha
+    , captchaSolve : String
+    }
+
+
+type alias FeedInfo =
+    { searchQuery : String
+    , visibleMedia : S.Set String
+    , blurImages : Bool
+    , lastChunk : Int
+    , qotd : String
     , feed : D.Dict String Post
     , feedDisplay : D.Dict Int (List Post)
     , comments : D.Dict String (D.Dict String Comment)
     , viewing : Maybe Post
     , hidden : S.Set String
-    , submission : Submission
-    , commentSubmission : CommentSubmission
-    , submissionFeedback : String
-    , time : Time.Posix
-    , searchQuery : String
-    , visibleMedia : S.Set String
-    , blurImages : Bool
-    , lastChunk : Int
-    , head : Maybe Post
-    , captchaHead : Captcha
-    , qotd : String
     }
 
 
@@ -86,24 +97,79 @@ quotes =
     ]
 
 
-setSubmission : Submission -> Model -> Model
+setSubmissionInfo : SubmissionInfo -> Model -> Model
+setSubmissionInfo s m =
+    { m | subInfo = s }
+
+
+setCaptchaHead : Captcha -> SubmissionInfo -> SubmissionInfo
+setCaptchaHead c m =
+    { m | captchaHead = c }
+
+
+setQotd : String -> FeedInfo -> FeedInfo
+setQotd q m =
+    { m | qotd = q }
+
+
+setFeedInfo : FeedInfo -> Model -> Model
+setFeedInfo s m =
+    { m | feedInfo = s }
+
+
+setVisibleMedia : S.Set String -> FeedInfo -> FeedInfo
+setVisibleMedia s m =
+    { m | visibleMedia = s }
+
+
+setBlurImages : Bool -> FeedInfo -> FeedInfo
+setBlurImages b m =
+    { m | blurImages = b }
+
+
+setLastChunk : Int -> FeedInfo -> FeedInfo
+setLastChunk c m =
+    { m | lastChunk = c }
+
+
+setSubmission : Submission -> SubmissionInfo -> SubmissionInfo
 setSubmission s m =
     { m | submission = s }
 
 
-setCommentSubmission : CommentSubmission -> Model -> Model
+setCommentSubmission : CommentSubmission -> SubmissionInfo -> SubmissionInfo
 setCommentSubmission s m =
     { m | commentSubmission = s }
 
 
-setSubmissionFeedback : String -> Model -> Model
+setSubmissionFeedback : String -> SubmissionInfo -> SubmissionInfo
 setSubmissionFeedback s m =
     { m | submissionFeedback = s }
 
 
-setViewing : Post -> Model -> Model
+setSearchQuery : String -> FeedInfo -> FeedInfo
+setSearchQuery s m =
+    { m | searchQuery = s }
+
+
+setViewing : Maybe Post -> FeedInfo -> FeedInfo
 setViewing p m =
-    { m | viewing = Just p }
+    { m | viewing = p }
+
+
+setHead : Maybe Post -> SubmissionInfo -> SubmissionInfo
+setHead p m =
+    { m | head = p }
+
+
+setHidden : S.Set String -> FeedInfo -> FeedInfo
+setHidden h m =
+    { m | hidden = h }
+
+
+setComments : D.Dict String (D.Dict String Comment) -> FeedInfo -> FeedInfo
+setComments c m =
+    { m | comments = c }
 
 
 addComment : Comment -> Model -> Model
@@ -112,81 +178,95 @@ addComment c m =
         m
 
     else
-        { m
-            | comments =
-                D.update c.parent
-                    (\maybeComments ->
-                        case maybeComments of
-                            Just comments ->
-                                Just (D.insert c.id c comments)
+        m
+            |> setFeedInfo
+                (m.feedInfo
+                    |> setComments
+                        (D.update c.parent
+                            (\maybeComments ->
+                                case maybeComments of
+                                    Just comments ->
+                                        Just (D.insert c.id c comments)
 
-                            Nothing ->
-                                Just (D.fromList [ ( c.id, c ) ])
-                    )
-                    m.comments
-        }
+                                    Nothing ->
+                                        Just (D.fromList [ ( c.id, c ) ])
+                            )
+                            m.feedInfo.comments
+                        )
+                )
 
 
 addPost : Int -> Post -> Model -> Model
 addPost chunk p m =
-    if D.member p.id m.feed then
+    if D.member p.id m.feedInfo.feed then
         m
 
     else
         let
             display =
-                m.feedDisplay
+                m.feedInfo.feedDisplay
         in
-        { m
-            | feed = D.insert p.id p m.feed
-            , feedDisplay =
-                let
-                    newChunks =
-                        case D.get chunk display of
-                            Just chunkItems ->
-                                p :: chunkItems
+        let
+            feedInfo =
+                m.feedInfo
+        in
+        m
+            |> setFeedInfo
+                { feedInfo
+                    | feed = D.insert p.id p m.feedInfo.feed
+                    , feedDisplay =
+                        let
+                            newChunks =
+                                case D.get chunk display of
+                                    Just chunkItems ->
+                                        p :: chunkItems
+
+                                    Nothing ->
+                                        [ p ]
+                        in
+                        D.insert chunk newChunks display
+                }
+            |> setSubmissionInfo
+                (m.subInfo
+                    |> setHead
+                        (case m.subInfo.head of
+                            Just head ->
+                                if p.timestamp > head.timestamp then
+                                    Just p
+
+                                else
+                                    Just head
 
                             Nothing ->
-                                [ p ]
-                in
-                D.insert chunk newChunks display
-            , head =
-                case m.head of
-                    Just head ->
-                        if p.timestamp > head.timestamp then
-                            Just p
-
-                        else
-                            Just head
-
-                    Nothing ->
-                        Just p
-        }
+                                Just p
+                        )
+                )
 
 
 toggleHidden : String -> Model -> Model
 toggleHidden parent m =
     let
         hidden =
-            m.hidden
+            m.feedInfo.hidden
     in
-    if S.member parent m.hidden then
-        { m | hidden = S.remove parent m.hidden }
+    if S.member parent m.feedInfo.hidden then
+        m
+            |> setFeedInfo (m.feedInfo |> setHidden (S.remove parent m.feedInfo.hidden))
 
     else
-        { m | hidden = S.insert parent m.hidden }
+        m |> setFeedInfo (m.feedInfo |> setHidden (S.insert parent m.feedInfo.hidden))
 
 
 commentsFor : String -> Model -> Maybe (List Comment)
 commentsFor s model =
-    D.get s model.comments |> M.map D.values |> M.map (L.sortWith descending)
+    D.get s model.feedInfo.comments |> M.map D.values |> M.map (L.sortWith descending)
 
 
 allCommentsFor : String -> Model -> Maybe (List Comment)
 allCommentsFor s model =
     let
         roots =
-            D.get s model.comments
+            D.get s model.feedInfo.comments
     in
     roots |> M.map D.values |> M.map (L.concatMap (\comment -> comment :: M.withDefault [] (allCommentsFor comment.id model)))
 
@@ -211,7 +291,7 @@ sortActivity model a b =
 viewPosts : Model -> Html Msg
 viewPosts model =
     div []
-        (D.toList model.feedDisplay
+        (D.toList model.feedInfo.feedDisplay
             |> L.sortBy Tuple.first
             |> L.reverse
             |> L.map Tuple.second
@@ -223,11 +303,11 @@ viewPosts model =
                 (\post ->
                     let
                         q =
-                            String.toLower model.searchQuery
+                            String.toLower model.feedInfo.searchQuery
                     in
                     String.contains q (String.toLower post.title) || String.contains q (String.toLower post.text)
                 )
-            |> L.map (\post -> viewPost (not (S.member post.id model.visibleMedia) && model.blurImages) (allCommentsFor post.id model |> M.map L.length |> M.withDefault 0) (L.member post.id verifiedPosts) post)
+            |> L.map (\post -> viewPost (not (S.member post.id model.feedInfo.visibleMedia) && model.feedInfo.blurImages) (allCommentsFor post.id model |> M.map L.length |> M.withDefault 0) (L.member post.id verifiedPosts) post)
         )
 
 
@@ -235,11 +315,11 @@ viewPostComments : Model -> Html Msg
 viewPostComments model =
     let
         comments =
-            M.withDefault [] (M.andThen .comments model.viewing)
+            M.withDefault [] (M.andThen .comments model.feedInfo.viewing)
     in
     let
         newestComment =
-            model.viewing |> M.map .id |> M.andThen (\id -> allCommentsFor id model) |> M.map (L.sortWith descending) |> M.withDefault [] |> L.head |> M.map .id |> M.withDefault ""
+            model.feedInfo.viewing |> M.map .id |> M.andThen (\id -> allCommentsFor id model) |> M.map (L.sortWith descending) |> M.withDefault [] |> L.head |> M.map .id |> M.withDefault ""
     in
     div [ class "comments" ] (comments |> L.sortWith descending |> L.filter (\comment -> comment.text /= "") |> L.map (\comment -> viewComment newestComment model comment))
 
@@ -252,7 +332,7 @@ viewComment highlightedComment model comment =
     in
     let
         replying =
-            model.commentSubmission.parent == comment.id
+            model.subInfo.commentSubmission.parent == comment.id
     in
     let
         children =
@@ -283,7 +363,7 @@ viewComment highlightedComment model comment =
                     ]
                 , div [ class "commentContent" ] [ viewMultimedia comment.content, viewCommentText comment.text ]
                 , if replying then
-                    viewCommentArea model.submissionFeedback model.commentSubmission
+                    viewCommentArea model.subInfo.submissionFeedback model.subInfo.commentSubmission
 
                   else
                     text ""
@@ -291,7 +371,7 @@ viewComment highlightedComment model comment =
             , if L.length children > 0 then
                 div [ class "subcommentsArea" ]
                     [ div [ class "commentMarker", onClick (ToggleHideChain comment.id) ] []
-                    , if S.member comment.id model.hidden then
+                    , if S.member comment.id model.feedInfo.hidden then
                         text ""
 
                       else
@@ -331,7 +411,7 @@ normalizePostId id =
 
 viewQotd : Model -> Html Msg
 viewQotd m =
-    p [ class "qotd" ] [ text m.qotd ]
+    p [ class "qotd" ] [ text m.feedInfo.qotd ]
 
 
 viewQuickLinks : Html Msg
@@ -358,14 +438,14 @@ init flags url key =
     in
     let
         model =
-            Model key url (D.fromList []) (D.fromList []) (D.fromList []) Nothing S.empty (Submission "" "" "" 0 Image) (CommentSubmission "" "" "" Image 0) "" (Time.millisToPosix 0) "" S.empty True 0 Nothing { answer = "", data = "" } ""
+            Model key url (SubmissionInfo (Submission "" "" "" "" 0 Image) (CommentSubmission "" "" "" Image 0) "" Nothing (Captcha "" "") "") (FeedInfo "" S.empty True 0 "" (D.fromList []) (D.fromList []) (D.fromList []) Nothing S.empty) (Time.millisToPosix 0)
     in
     case normalized of
         Just post ->
-            ( { model | commentSubmission = { text = "", parent = post, content = "", contentKind = Image, nonce = 0 } }, Cmd.batch ([ loadPost post, getComments post ] ++ loadCmd) )
+            ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission { text = "", parent = post, content = "", contentKind = Image, nonce = 0 }), Cmd.batch ([ loadPost post, getComments post ] ++ loadCmd) )
 
         Nothing ->
-            ( { model | viewing = Nothing }, Cmd.batch loadCmd )
+            ( model |> setFeedInfo (model.feedInfo |> setViewing Nothing), Cmd.batch loadCmd )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -376,8 +456,8 @@ update msg model =
                 unix =
                     Time.posixToMillis t // 1000
             in
-            if getChunkTime unix - model.lastChunk > 86400 then
-                ( { model | time = t, lastChunk = getChunkTime unix }, loadChunk (getChunkTime unix) )
+            if getChunkTime unix - model.feedInfo.lastChunk > 86400 then
+                ( { model | time = t } |> setFeedInfo (model.feedInfo |> setLastChunk (getChunkTime unix)), loadChunk (getChunkTime unix) )
 
             else
                 ( { model | time = t }, Cmd.none )
@@ -409,19 +489,19 @@ update msg model =
         SelectPost p ->
             case p of
                 Just post ->
-                    ( { model | commentSubmission = { text = "", parent = post, content = "", contentKind = Image, nonce = 0 } }, Cmd.batch [ loadPost post, getComments post ] )
+                    ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission { text = "", parent = post, content = "", contentKind = Image, nonce = 0 }), Cmd.batch [ loadPost post, getComments post ] )
 
                 Nothing ->
-                    ( { model | viewing = Nothing }, Cmd.none )
+                    ( model |> setFeedInfo (model.feedInfo |> setViewing Nothing), Cmd.none )
 
         PostLoaded p ->
             case JD.decodeValue postDecoder p of
                 Ok post ->
                     let
                         postWithC =
-                            { post | comments = D.get post.id model.comments |> M.map D.values }
+                            { post | comments = D.get post.id model.feedInfo.comments |> M.map D.values }
                     in
-                    ( { model | viewing = Just postWithC }, Cmd.none )
+                    ( model |> setFeedInfo (model.feedInfo |> setViewing (Just postWithC)), Cmd.none )
 
                 otherwise ->
                     ( model, Cmd.none )
@@ -443,24 +523,24 @@ update msg model =
                     ( model, Cmd.none )
 
         ChangeSubTitle s ->
-            ( model |> setSubmission (model.submission |> setTitle s), Cmd.none )
+            ( model |> setSubmissionInfo (model.subInfo |> setSubmission (model.subInfo.submission |> setTitle s)), Cmd.none )
 
         ChangeSubText s ->
-            ( model |> setSubmission (model.submission |> setText s), Cmd.none )
+            ( model |> setSubmissionInfo (model.subInfo |> setSubmission (model.subInfo.submission |> setText s)), Cmd.none )
 
         ChangeSubContent s ->
-            ( model |> setSubmission (model.submission |> setContent s), Cmd.none )
+            ( model |> setSubmissionInfo (model.subInfo |> setSubmission (model.subInfo.submission |> setContent s)), Cmd.none )
 
         SetSubContentImage ->
-            ( model |> setSubmission (model.submission |> setContentKind Image), Cmd.none )
+            ( model |> setSubmissionInfo (model.subInfo |> setSubmission (model.subInfo.submission |> setContentKind Image)), Cmd.none )
 
         SetSubContentVideo ->
-            ( model |> setSubmission (model.submission |> setContentKind Video), Cmd.none )
+            ( model |> setSubmissionInfo (model.subInfo |> setSubmission (model.subInfo.submission |> setContentKind Video)), Cmd.none )
 
         SubmitPost ->
-            case model.head of
+            case model.subInfo.head of
                 Just head ->
-                    ( model |> setSubmission (Submission "" "" "" 0 Image) |> setSubmissionFeedback "", Cmd.batch [ model.submission |> fromSubmission model.captchaHead head.id (Time.posixToMillis model.time // 1000 |> epochs) model.time |> postEncoder |> submitPost, genCaptcha () ] )
+                    ( model |> setSubmissionInfo (model.subInfo |> setSubmission (Submission "" "" "" "" 0 Image) |> setSubmissionFeedback ""), Cmd.batch [ model.subInfo.submission |> fromSubmission model.subInfo.captchaHead head.id (Time.posixToMillis model.time // 1000 |> epochs) model.time |> postEncoder |> submitPost, genCaptcha () ] )
 
                 Nothing ->
                     ( model, Cmd.none )
@@ -468,21 +548,21 @@ update msg model =
         ChangeSubCommentText s ->
             let
                 sub =
-                    model.commentSubmission
+                    model.subInfo.commentSubmission
             in
-            ( model |> setCommentSubmission { sub | text = s }, Cmd.none )
+            ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission { sub | text = s }), Cmd.none )
 
         SubmitComment ->
-            case model.viewing of
+            case model.feedInfo.viewing of
                 Just viewing ->
                     let
                         vJson =
                             postEncoder viewing
                     in
-                    ( model |> setCommentSubmission (CommentSubmission "" "" "" Image 0) |> setSubmissionFeedback "", Cmd.batch [ model.commentSubmission |> commentFromSubmission (epochsComments (Time.posixToMillis model.time // 1000)) model.time |> commentEncoder |> (\cJson -> JE.list identity [ cJson, vJson ]) |> submitComment, genCaptcha () ] )
+                    ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission (CommentSubmission "" "" "" Image 0) |> setSubmissionFeedback ""), Cmd.batch [ model.subInfo.commentSubmission |> commentFromSubmission (epochsComments (Time.posixToMillis model.time // 1000)) model.time |> commentEncoder |> (\cJson -> JE.list identity [ cJson, vJson ]) |> submitComment, genCaptcha () ] )
 
                 Nothing ->
-                    ( model |> setCommentSubmission (CommentSubmission "" "" "" Image 0) |> setSubmissionFeedback "", Cmd.none )
+                    ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission (CommentSubmission "" "" "" Image 0) |> setSubmissionFeedback ""), Cmd.none )
 
         CommentAdded c ->
             case JD.decodeValue commentDecoder c of
@@ -495,9 +575,9 @@ update msg model =
                         modelWithC =
                             model |> addComment hashed
                     in
-                    case modelWithC.viewing of
+                    case modelWithC.feedInfo.viewing of
                         Just viewing ->
-                            ( modelWithC |> setViewing { viewing | comments = modelWithC |> commentsFor viewing.id }, getComments comment.id )
+                            ( modelWithC |> setFeedInfo (modelWithC.feedInfo |> setViewing (Just { viewing | comments = modelWithC |> commentsFor viewing.id })), getComments comment.id )
 
                         Nothing ->
                             ( modelWithC, getComments comment.id )
@@ -508,62 +588,65 @@ update msg model =
         ChangeSubParent id ->
             let
                 sub =
-                    model.commentSubmission
+                    model.subInfo.commentSubmission
             in
-            ( model |> setCommentSubmission { sub | parent = id }, Cmd.none )
+            ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission { sub | parent = id }), Cmd.none )
 
         ClearSub ->
-            ( model |> setCommentSubmission { text = "", parent = "", content = "", contentKind = Image, nonce = 0 } |> setSubmissionFeedback "", Cmd.none )
+            ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission { text = "", parent = "", content = "", contentKind = Image, nonce = 0 } |> setSubmissionFeedback ""), Cmd.none )
 
         ToggleHideChain parent ->
             ( model |> toggleHidden parent, Cmd.none )
 
         ChangeSearchQuery q ->
-            ( { model | searchQuery = q }, Cmd.none )
+            ( model |> setFeedInfo (model.feedInfo |> setSearchQuery q), Cmd.none )
 
         ChangeSubCommentContent s ->
             let
                 sub =
-                    model.commentSubmission
+                    model.subInfo.commentSubmission
             in
-            ( model |> setCommentSubmission { sub | content = s }, Cmd.none )
+            ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission { sub | content = s }), Cmd.none )
 
         SetSubCommentContentImage ->
             let
                 sub =
-                    model.commentSubmission
+                    model.subInfo.commentSubmission
             in
-            ( model |> setCommentSubmission { sub | contentKind = Image }, Cmd.none )
+            ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission { sub | contentKind = Image }), Cmd.none )
 
         SetSubCommentContentVideo ->
             let
                 sub =
-                    model.commentSubmission
+                    model.subInfo.commentSubmission
             in
-            ( model |> setCommentSubmission { sub | contentKind = Video }, Cmd.none )
+            ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission { sub | contentKind = Video }), Cmd.none )
 
         SetMediaVisible visible media ->
             let
                 vis =
-                    model.visibleMedia
+                    model.feedInfo.visibleMedia
             in
-            ( { model
-                | visibleMedia =
-                    if not visible then
-                        S.insert media vis
+            ( model
+                |> setFeedInfo
+                    (model.feedInfo
+                        |> setVisibleMedia
+                            (if not visible then
+                                S.insert media vis
 
-                    else
-                        S.remove media vis
-              }
+                             else
+                                S.remove media vis
+                            )
+                    )
             , Cmd.none
             )
 
         ToggleBlurImages ->
             let
                 blurred =
-                    model.blurImages
+                    model.feedInfo.blurImages
             in
-            ( { model | blurImages = not blurred }, Cmd.none )
+            ( model |> setFeedInfo (model.feedInfo |> setBlurImages (not blurred)), Cmd.none )
 
         CopyString s ->
             ( model, copy s )
@@ -571,36 +654,36 @@ update msg model =
         ScrolledBottom ->
             let
                 newChunk =
-                    model.lastChunk - 86400
+                    model.feedInfo.lastChunk - 86400
             in
-            ( { model | lastChunk = newChunk }, loadChunk newChunk )
+            ( model |> setFeedInfo (model.feedInfo |> setLastChunk newChunk), loadChunk newChunk )
 
         GotCaptcha captchaJson ->
             case JD.decodeValue captchaDecoder captchaJson of
                 Ok captcha ->
-                    ( { model | captchaHead = captcha |> hash }, Cmd.none )
+                    ( model |> setSubmissionInfo (model.subInfo |> setCaptchaHead (captcha |> hash)), Cmd.none )
 
                 Err _ ->
                     ( model, Cmd.none )
 
         NewQuote q ->
-            ( { model | qotd = q }, Cmd.none )
+            ( model |> setFeedInfo (model.feedInfo |> setQotd q), Cmd.none )
 
         ValidatePost ->
-            case subContentValid model.submission of
+            case subContentValid model.subInfo.submission of
                 Ok _ ->
                     update SubmitPost model
 
                 Err e ->
-                    ( { model | submissionFeedback = e }, Cmd.none )
+                    ( model |> setSubmissionInfo (model.subInfo |> setSubmissionFeedback e), Cmd.none )
 
         ValidateComment ->
-            case subContentValid model.commentSubmission of
+            case subContentValid model.subInfo.commentSubmission of
                 Ok _ ->
                     update SubmitComment model
 
                 Err e ->
-                    ( { model | submissionFeedback = e }, Cmd.none )
+                    ( model |> setSubmissionInfo (model.subInfo |> setSubmissionFeedback e), Cmd.none )
 
 
 port loadPost : String -> Cmd msg
@@ -646,7 +729,7 @@ view model =
         let
             home =
                 [ div
-                    (case model.viewing of
+                    (case model.feedInfo.viewing of
                         Just _ ->
                             [ class "feedContainer", class "hidden" ]
 
@@ -654,7 +737,7 @@ view model =
                             [ class "feedContainer" ]
                     )
                     [ div
-                        (case model.viewing of
+                        (case model.feedInfo.viewing of
                             Just _ ->
                                 [ class "feed", class "hidden" ]
 
@@ -664,12 +747,12 @@ view model =
                         [ div [ class "logo" ] [ img [ src "/logo.png" ] [], div [ class "logoText" ] [ h1 [] [ text "DubChan" ], p [] [ text "Anonymous. Unmoderated." ] ] ]
                         , viewQuickLinks
                         , viewQotd model
-                        , viewSubmitPost model.submissionFeedback model.submission
+                        , viewSubmitPost model.subInfo.submissionFeedback model.subInfo.submission
                         , div [ class "feedControls" ]
-                            [ viewSearch model.searchQuery
+                            [ viewSearch model.feedInfo.searchQuery
                             , p
                                 [ onClick ToggleBlurImages
-                                , if model.blurImages then
+                                , if model.feedInfo.blurImages then
                                     class "active"
 
                                   else
@@ -683,17 +766,17 @@ view model =
                     ]
                 ]
         in
-        case model.viewing of
+        case model.feedInfo.viewing of
             Just viewing ->
                 div [ class "viewer" ]
                     [ div [ class "viewerBody" ]
                         [ div [ class "navigation" ] [ img [ src "/back.svg", onClick (SelectPost Nothing) ] [] ]
                         , viewPost False 0 (L.member viewing.id verifiedPosts) viewing
-                        , if model.commentSubmission.parent /= viewing.id && model.commentSubmission.parent /= "" then
+                        , if model.subInfo.commentSubmission.parent /= viewing.id && model.subInfo.commentSubmission.parent /= "" then
                             text ""
 
                           else
-                            viewCommentArea model.submissionFeedback model.commentSubmission
+                            viewCommentArea model.subInfo.submissionFeedback model.subInfo.commentSubmission
                         , viewPostComments model
                         ]
                     ]

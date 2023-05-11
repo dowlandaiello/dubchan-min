@@ -24,6 +24,7 @@ type alias Post =
     , comments : Maybe (List Comment)
     , nonce : Int
     , captcha : Maybe Captcha
+    , captchaAnswer : Maybe String
     , id : String
     , hash : String
     , prev : Maybe String
@@ -34,6 +35,7 @@ type alias Submission =
     { title : String
     , text : String
     , content : String
+    , captchaAnswer : String
     , nonce : Int
     , contentKind : MultimediaKind
     }
@@ -112,7 +114,7 @@ submissionFromPost p =
         content =
             M.withDefault (Multimedia "" Image) p.content
     in
-    Submission p.title p.text content.src p.nonce content.kind
+    Submission p.title p.text content.src (M.withDefault "" p.captchaAnswer) p.nonce content.kind
 
 
 fromSubmission : Captcha -> String -> Int -> Posix -> Submission -> Post
@@ -134,6 +136,7 @@ fromSubmission captcha prev target time sub =
             Nothing
             sub.nonce
             (Just captcha)
+            (Just sub.captchaAnswer)
             id
             id
             (Just prev)
@@ -290,6 +293,7 @@ postDecoder =
         |> andMap (field "comments" (nullable (list commentDecoder)))
         |> andMap (field "nonce" int)
         |> andMap (maybe (field "captcha" captchaDecoder))
+        |> andMap (maybe (field "captchaAnswer" string))
         |> andMap (field "id" string)
         |> andMap (field "hash" string)
         |> andMap (maybe (field "prev" string))

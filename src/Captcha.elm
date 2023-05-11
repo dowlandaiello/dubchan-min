@@ -15,10 +15,10 @@ type alias Captcha =
 hash : Captcha -> Captcha
 hash c =
     let
-        d =
-            c.data
+        a =
+            c.answer
     in
-    { c | data = sha256 d }
+    { c | answer = sha256 a }
 
 
 captchaDecoder : Decoder Captcha
