@@ -166,6 +166,7 @@ commentFromSubmission target time sub =
                 Nothing
             )
             0
+            Nothing
             id
 
     else
@@ -183,6 +184,7 @@ type alias Comment =
     , id : String
     , content : Maybe Multimedia
     , nonce : Int
+    , captchaAnswer : Maybe String
     , hash : String
     }
 
@@ -205,7 +207,15 @@ postChunkDecoder =
 
 commentDecoder : Decoder Comment
 commentDecoder =
-    map7 Comment (field "timestamp" int) (field "text" string) (field "parent" string) (field "id" string) (field "content" (nullable multimediaDecoder)) (field "nonce" int) (field "hash" string)
+    JD.succeed Comment
+        |> andMap (field "timestamp" int)
+        |> andMap (field "text" string)
+        |> andMap (field "parent" string)
+        |> andMap (field "id" string)
+        |> andMap (field "content" (nullable multimediaDecoder))
+        |> andMap (field "nonce" int)
+        |> andMap (maybe (field "captchaAnswer" string))
+        |> andMap (field "hash" string)
 
 
 multimediaDecoder : Decoder Multimedia
@@ -257,7 +267,16 @@ postEncoder p =
 
 commentEncoder : Comment -> JE.Value
 commentEncoder c =
-    JE.object [ ( "timestamp", JE.int c.timestamp ), ( "text", JE.string c.text ), ( "parent", JE.string c.parent ), ( "id", JE.string c.id ), ( "content", c.content |> M.map multimediaEncoder |> M.withDefault JE.null ), ( "nonce", JE.int c.nonce ), ( "hash", JE.string c.hash ) ]
+    let
+        req =
+            [ ( "timestamp", JE.int c.timestamp ), ( "text", JE.string c.text ), ( "parent", JE.string c.parent ), ( "id", JE.string c.id ), ( "content", c.content |> M.map multimediaEncoder |> M.withDefault JE.null ), ( "nonce", JE.int c.nonce ), ( "hash", JE.string c.hash ) ]
+    in
+    case c.captchaAnswer of
+        Just answer ->
+            JE.object (( "captchaAnswer", JE.string answer ) :: req)
+
+        Nothing ->
+            JE.object req
 
 
 postId : Posix -> Submission -> String

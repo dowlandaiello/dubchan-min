@@ -10,6 +10,7 @@ import Html.Events exposing (onClick, onInput)
 import Json.Decode as JD
 import Json.Encode as JE
 import List as L
+import List.Extra as LE
 import Maybe as M
 import Msg exposing (Msg(..))
 import Post exposing (Comment, CommentSubmission, MultimediaKind(..), Post, Submission, commentDecoder, commentEncoder, commentFromSubmission, commentId, descending, fromSubmission, getChunkTime, isValidHash, postChunkDecoder, postDecoder, postEncoder, postId, pushComment, setContent, setContentKind, setText, setTitle, subContentValid, submissionFromComment, submissionFromPost, viewCommentArea, viewCommentText, viewMultimedia, viewPost, viewSubmitPost, viewTimestamp)
@@ -35,6 +36,7 @@ type alias SubmissionInfo =
     { submission : Submission
     , commentSubmission : CommentSubmission
     , submitting : Maybe Post
+    , commentSubmitting : Maybe Comment
     , submissionFeedback : String
     , head : Maybe Post
     , captchaHead : Captcha
@@ -79,7 +81,7 @@ verifiedPosts =
 
 
 susPosts =
-    [ "atZytiL2hoFVzhtsPAcM9q57iGdHNFF0dbk6VQf+TqM=", "8tAA5rNHiaWrOs+rIRhJLOjqgNb2qxIT1AuMASg+1Rg=", "LJrSVEm9XaAO7Y8hN4PvHOLYGnC5ZIaJamsON4vx5YY=", "hQt7sBdkuJMRI0VJ7pBW2m01jeaAGVs3JBDLPZ9QLaY=", "Xb0QMuARwBEIbP+DUyeywdtHKIzKb9ax2VajN47gjUs=", "bAYLk1YbUHySKEB5VU3KgEq9DzxvAR3V8c2Fg+k+zFo=", "LMx3pwHFkIWbYwVVlEHdD3B1kK0Tr+ZLN4biC6GB8uA=", "9IORdvUHPFO1p/S9YsgvElTg3sA0rHTNfNIWYIV3bBc=" ]
+    [ "atZytiL2hoFVzhtsPAcM9q57iGdHNFF0dbk6VQf+TqM=", "8tAA5rNHiaWrOs+rIRhJLOjqgNb2qxIT1AuMASg+1Rg=", "LJrSVEm9XaAO7Y8hN4PvHOLYGnC5ZIaJamsON4vx5YY=", "hQt7sBdkuJMRI0VJ7pBW2m01jeaAGVs3JBDLPZ9QLaY=", "Xb0QMuARwBEIbP+DUyeywdtHKIzKb9ax2VajN47gjUs=", "bAYLk1YbUHySKEB5VU3KgEq9DzxvAR3V8c2Fg+k+zFo=", "LMx3pwHFkIWbYwVVlEHdD3B1kK0Tr+ZLN4biC6GB8uA=", "9IORdvUHPFO1p/S9YsgvElTg3sA0rHTNfNIWYIV3bBc=", "Cy082TCxZ9+5J1ZCFg7QfOpG0o4l82Ko8K8wfNcawdI=", "gRHpIQt5DulbmY/MYxVCZvTW1sPg+ESvqwguZXpKG4c=", "QcBO0k3pPHVcJD+TZhYMooO5yAEjltkMLDByxXI6ZQA=", "24/HhaxiksspsAbqKlrGvXmZZ0rCWYBVZKtKzn5dEAg=", "1MIngQvZXVkubu35Ivks6ItHhmNAz2+SmIoTgBuv8pw=", "+Jwv4Jdbml7PJQ2/O4UjaPx0Kj2Wa83n1QQyyLrKZM0=", "QaY66zFKjqT90IjWJswmyCY9qoTEvB2n5hUfBK54IKI=" ]
 
 
 quotes =
@@ -218,49 +220,45 @@ addComment c m =
 
 addPost : Int -> Post -> Model -> Model
 addPost chunk p m =
-    if D.member p.id m.feedInfo.feed then
-        m
+    let
+        display =
+            m.feedInfo.feedDisplay
+    in
+    let
+        feedInfo =
+            m.feedInfo
+    in
+    m
+        |> setFeedInfo
+            { feedInfo
+                | feed = D.insert p.id p m.feedInfo.feed
+                , feedDisplay =
+                    let
+                        newChunks =
+                            case D.get chunk display of
+                                Just chunkItems ->
+                                    p :: chunkItems
 
-    else
-        let
-            display =
-                m.feedInfo.feedDisplay
-        in
-        let
-            feedInfo =
-                m.feedInfo
-        in
-        m
-            |> setFeedInfo
-                { feedInfo
-                    | feed = D.insert p.id p m.feedInfo.feed
-                    , feedDisplay =
-                        let
-                            newChunks =
-                                case D.get chunk display of
-                                    Just chunkItems ->
-                                        p :: chunkItems
-
-                                    Nothing ->
-                                        [ p ]
-                        in
-                        D.insert chunk newChunks display
-                }
-            |> setSubmissionInfo
-                (m.subInfo
-                    |> setHead
-                        (case m.subInfo.head of
-                            Just head ->
-                                if p.timestamp > head.timestamp then
-                                    Just p
-
-                                else
-                                    Just head
-
-                            Nothing ->
+                                Nothing ->
+                                    [ p ]
+                    in
+                    D.insert chunk newChunks display
+            }
+        |> setSubmissionInfo
+            (m.subInfo
+                |> setHead
+                    (case m.subInfo.head of
+                        Just head ->
+                            if p.timestamp > head.timestamp then
                                 Just p
-                        )
-                )
+
+                            else
+                                Just head
+
+                        Nothing ->
+                            Just p
+                    )
+            )
 
 
 toggleHidden : String -> Model -> Model
@@ -317,7 +315,7 @@ viewPosts model =
             |> L.map Tuple.second
             |> L.concatMap (List.sortWith (sortActivity model))
             |> L.filter (\post -> not (String.isEmpty (String.filter ((/=) ' ') post.title)))
-            |> L.filter (\post -> not (L.member post.id susPosts) && not (String.startsWith "fuck you" post.title))
+            |> L.filter (\post -> not (L.member post.id susPosts) && not (String.startsWith "fuck you" post.title) && not (String.startsWith "This is why you need a CAPTCHA." post.title))
             |> L.filter (\post -> model.feedInfo.captchas |> D.get post.hash |> M.map (isValidCaptcha (post.captchaAnswer |> M.withDefault "")) |> M.withDefault True)
             |> L.filter (\post -> isValidHash (epochs post.timestamp) post.hash)
             |> L.filter
@@ -328,6 +326,7 @@ viewPosts model =
                     in
                     String.contains q (String.toLower post.title) || String.contains q (String.toLower post.text)
                 )
+            |> LE.uniqueBy .id
             |> L.map (\post -> viewPost (not (S.member post.id model.feedInfo.visibleMedia) && model.feedInfo.blurImages) (allCommentsFor post.id model |> M.map L.length |> M.withDefault 0) (L.member post.id verifiedPosts) post)
         )
 
@@ -459,7 +458,7 @@ init flags url key =
     in
     let
         model =
-            Model key url (SubmissionInfo (Submission "" "" "" 0 Image) (CommentSubmission "" "" "" Image 0) Nothing "" Nothing (Captcha "" "")) (FeedInfo "" S.empty True 0 "" (D.fromList []) (D.fromList []) (D.fromList []) (D.fromList []) Nothing S.empty) (Time.millisToPosix 0)
+            Model key url (SubmissionInfo (Submission "" "" "" 0 Image) (CommentSubmission "" "" "" Image 0) Nothing Nothing "" Nothing (Captcha "" "")) (FeedInfo "" S.empty True 0 "" (D.fromList []) (D.fromList []) (D.fromList []) (D.fromList []) Nothing S.empty) (Time.millisToPosix 0)
     in
     case normalized of
         Just post ->

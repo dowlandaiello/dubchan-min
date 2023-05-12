@@ -21,7 +21,9 @@ app.ports.copy.subscribe((s) => {
 
 app.ports.loadCaptcha.subscribe((p) => {
   const n = parseInt(p.hash.substring(p.hash.length - 2, p.hash.length), 16);
+  //console.log(p, n);
   captchaFor(p, n, [], (chain) => {
+    //console.log(chain, p);
     if (chain.length == 0)
       return;
 
@@ -44,7 +46,7 @@ const captchaFor = (curr, n, chain, callback) => {
     try {
       const prev = JSON.parse(prevStr);
 
-      if (prev.captcha === undefined || prev.captcha.answer === undefined || prev.captcha.answer.length === 5 || prev.id === "QcBO0k3pPHVcJD+TZhYMooO5yAEjltkMLDByxXI6ZQA=") {
+      if (prev.captcha === undefined || prev.captcha.answer === undefined || prev.captcha.answer.length === 5 || prev.timestamp <= 1683831536) {
         callback(chain);
 
         return;
@@ -83,7 +85,7 @@ app.ports.getComments.subscribe((post) => {
     try {
       const json = JSON.parse(str);
       if (json.parent !== undefined) {
-        app.ports.commentIn.send({ ...json, id: id, nonce: json.nonce ?? 0, hash: json.hash ?? "", content: json.content ?? null });
+        app.ports.commentIn.send({ ...json, id: id, nonce: json.nonce ?? 0, hash: json.hash ?? "", content: json.content ?? null, captchaAnswer: json.captchaAnswer });
       }
     } catch (e) {
       console.error(e);
@@ -187,7 +189,6 @@ app.ports.loadChunk.subscribe(loadChunk);
 app.ports.genCaptcha.subscribe(genCaptcha);
 
 app.ports.submitPost.subscribe(async (post) => {
-  console.log(post);
   const data = JSON.stringify(post);
   const hash = await SEA.work(data, null, null, { name: 'SHA-256' });
 

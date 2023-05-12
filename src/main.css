@@ -28,6 +28,12 @@ body {
   height: 146px;
 }
 
+@media (max-width: 730px) {
+  #captchaGen {
+    width: 100%;
+  }
+}
+
 ::-webkit-scrollbar {
   width: 5px;
   border-radius: 5px;
