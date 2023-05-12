@@ -12,6 +12,12 @@ type alias Captcha =
     }
 
 
+type alias CaptchaMsg =
+    { post : String
+    , captcha : Captcha
+    }
+
+
 hash : Captcha -> Captcha
 hash c =
     let
@@ -19,6 +25,11 @@ hash c =
             c.answer
     in
     { c | answer = sha256 a }
+
+
+captchaMsgDecoder : Decoder CaptchaMsg
+captchaMsgDecoder =
+    JD.succeed CaptchaMsg |> andMap (field "post" string) |> andMap (field "captcha" captchaDecoder)
 
 
 captchaDecoder : Decoder Captcha
@@ -32,3 +43,8 @@ captchaEncoder : Captcha -> JE.Value
 captchaEncoder c =
     JE.object
         [ ( "answer", JE.string c.answer ), ( "data", JE.string c.data ) ]
+
+
+isValidCaptcha : String -> Captcha -> Bool
+isValidCaptcha c1 c2 =
+    c1 |> sha256 |> (==) c2.answer

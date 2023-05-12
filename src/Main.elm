@@ -2,7 +2,7 @@ port module Main exposing (..)
 
 import Browser
 import Browser.Navigation as Nav
-import Captcha exposing (Captcha, captchaDecoder, hash)
+import Captcha exposing (Captcha, captchaDecoder, captchaMsgDecoder, hash, isValidCaptcha)
 import Dict as D
 import Html exposing (Html, canvas, div, h1, img, input, p, text)
 import Html.Attributes exposing (class, id, placeholder, src, value)
@@ -318,6 +318,7 @@ viewPosts model =
             |> L.concatMap (List.sortWith (sortActivity model))
             |> L.filter (\post -> not (String.isEmpty (String.filter ((/=) ' ') post.title)))
             |> L.filter (\post -> not (L.member post.id susPosts) && not (String.startsWith "fuck you" post.title))
+            |> L.filter (\post -> model.feedInfo.captchas |> D.get post.hash |> M.map (isValidCaptcha (post.captchaAnswer |> M.withDefault "")) |> M.withDefault True)
             |> L.filter (\post -> isValidHash (epochs post.timestamp) post.hash)
             |> L.filter
                 (\post ->
@@ -537,7 +538,7 @@ update msg model =
                         hashed =
                             { post | hash = postId (Time.millisToPosix (post.timestamp * 1000)) (submissionFromPost post) }
                     in
-                    ( model |> addPost chunk.timestamp post, getComments post.id )
+                    ( model |> addPost chunk.timestamp post, Cmd.batch [ getComments post.id, loadCaptcha (hashed |> postEncoder) ] )
 
                 otherwise ->
                     ( model, Cmd.none )
@@ -562,7 +563,16 @@ update msg model =
                 Just head ->
                     case model.subInfo.submitting of
                         Just submitting ->
-                            ( model |> setSubmissionInfo (model.subInfo |> setSubmission (Submission "" "" "" 0 Image) |> setSubmitting Nothing |> setSubmissionFeedback ""), Cmd.batch [ submitting |> postEncoder |> submitPost, genCaptcha () ] )
+                            case model.feedInfo.captchas |> D.get submitting.hash of
+                                Just expected ->
+                                    if isValidCaptcha (submitting.captchaAnswer |> M.withDefault "") expected then
+                                        ( model |> setSubmissionInfo (model.subInfo |> setSubmission (Submission "" "" "" 0 Image) |> setSubmitting Nothing |> setSubmissionFeedback ""), Cmd.batch [ submitting |> postEncoder |> submitPost, genCaptcha () ] )
+
+                                    else
+                                        ( model |> setSubmissionInfo (model.subInfo |> setSubmissionFeedback "Invalid captcha response."), Cmd.none )
+
+                                Nothing ->
+                                    ( model |> setSubmissionInfo (model.subInfo |> setSubmissionFeedback "No captcha available."), Cmd.none )
 
                         Nothing ->
                             ( model, Cmd.none )
@@ -728,14 +738,13 @@ update msg model =
                     ( model, Cmd.none )
 
         LoadedCaptcha captchaJson ->
-            case JD.decodeValue captchaDecoder captchaJson of
-                Ok captcha ->
-                    case model.subInfo.submitting of
-                        Just submitting ->
-                            ( model |> setFeedInfo (model.feedInfo |> setCaptcha submitting.id captcha), Cmd.none )
+            case JD.decodeValue captchaMsgDecoder captchaJson of
+                Ok captchaMsg ->
+                    if D.member captchaMsg.post model.feedInfo.captchas then
+                        ( model, Cmd.none )
 
-                        Nothing ->
-                            ( model, Cmd.none )
+                    else
+                        ( model |> setFeedInfo (model.feedInfo |> setCaptcha captchaMsg.post captchaMsg.captcha), Cmd.none )
 
                 Err _ ->
                     ( model, Cmd.none )
@@ -747,7 +756,7 @@ update msg model =
                         |> setSubmitting
                             (case model.subInfo.submitting of
                                 Just submitting ->
-                                    Just (submitting |> setCaptchaAnswer answer)
+                                    Just (submitting |> setCaptchaAnswer (answer |> String.toLower))
 
                                 Nothing ->
                                     model.subInfo.submitting
@@ -824,7 +833,7 @@ view model =
                         [ div [ class "logo" ] [ img [ src "/logo.png" ] [], div [ class "logoText" ] [ h1 [] [ text "DubChan" ], p [] [ text "Anonymous. Unmoderated." ] ] ]
                         , viewQuickLinks
                         , viewQotd model
-                        , viewSubmitPost (model.subInfo.submitting |> M.map .id |> M.andThen (\id -> D.get id model.feedInfo.captchas |> M.map .data) |> M.withDefault "") (model.subInfo.submitting |> M.andThen .captchaAnswer |> M.withDefault "") model.subInfo.submissionFeedback model.subInfo.submission
+                        , viewSubmitPost (model.subInfo.submitting |> M.map .hash |> M.andThen (\id -> D.get id model.feedInfo.captchas |> M.map .data) |> M.withDefault "") (model.subInfo.submitting |> M.andThen .captchaAnswer |> M.withDefault "") model.subInfo.submissionFeedback model.subInfo.submission
                         , canvas [ id "captchaGen" ] []
                         , div [ class "feedControls" ]
                             [ viewSearch model.feedInfo.searchQuery

@@ -241,7 +241,12 @@ postEncoder p =
         Just captcha ->
             case p.prev of
                 Just prev ->
-                    JE.object (( "prev", JE.string prev ) :: ( "captcha", captchaEncoder captcha ) :: req)
+                    case p.captchaAnswer of
+                        Just answer ->
+                            JE.object (( "captchaAnswer", JE.string answer ) :: ( "prev", JE.string prev ) :: ( "captcha", captchaEncoder captcha ) :: req)
+
+                        Nothing ->
+                            JE.object (( "prev", JE.string prev ) :: ( "captcha", captchaEncoder captcha ) :: req)
 
                 Nothing ->
                     JE.object req
