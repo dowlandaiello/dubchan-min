@@ -144,6 +144,11 @@ setCaptchaAnswer s p =
     { p | captchaAnswer = Just s }
 
 
+setCommentCaptchaAnswer : String -> Comment -> Comment
+setCommentCaptchaAnswer s c =
+    { c | captchaAnswer = Just s }
+
+
 setLastChunk : Int -> FeedInfo -> FeedInfo
 setLastChunk c m =
     { m | lastChunk = c }
@@ -604,7 +609,21 @@ update msg model =
                         vJson =
                             postEncoder viewing
                     in
-                    ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission (CommentSubmission "" "" "" Image 0) |> setSubmissionFeedback ""), Cmd.batch [ model.subInfo.commentSubmission |> commentFromSubmission (epochsComments (Time.posixToMillis model.time // 1000)) model.time |> commentEncoder |> (\cJson -> JE.list identity [ cJson, vJson ]) |> submitComment, genCaptcha () ] )
+                    case model.subInfo.commentSubmitting of
+                        Just submitting ->
+                            case model.feedInfo.captchas |> D.get submitting.hash of
+                                Just expected ->
+                                    if isValidCaptcha (submitting.captchaAnswer |> M.withDefault "") expected then
+                                        ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission (CommentSubmission "" "" "" Image 0) |> setCommentSubmitting Nothing |> setSubmissionFeedback ""), Cmd.batch [ model.subInfo.commentSubmission |> commentFromSubmission (epochsComments (Time.posixToMillis model.time // 1000)) model.time |> commentEncoder |> (\cJson -> JE.list identity [ cJson, vJson ]) |> submitComment, genCaptcha () ] )
+
+                                    else
+                                        ( model |> setSubmissionInfo (model.subInfo |> setSubmissionFeedback "Invalid captcha response."), Cmd.none )
+
+                                Nothing ->
+                                    ( model |> setSubmissionInfo (model.subInfo |> setSubmissionFeedback "No captcha available."), Cmd.none )
+
+                        Nothing ->
+                            ( model, Cmd.none )
 
                 Nothing ->
                     ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission (CommentSubmission "" "" "" Image 0) |> setSubmissionFeedback ""), Cmd.none )
@@ -638,7 +657,7 @@ update msg model =
             ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission { sub | parent = id }), Cmd.none )
 
         ClearSub ->
-            ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission { text = "", parent = "", content = "", contentKind = Image, nonce = 0 } |> setSubmitting Nothing |> setSubmissionFeedback ""), Cmd.none )
+            ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission { text = "", parent = "", content = "", contentKind = Image, nonce = 0 } |> setSubmitting Nothing |> setCommentSubmitting Nothing |> setSubmissionFeedback ""), Cmd.none )
 
         ToggleHideChain parent ->
             ( model |> toggleHidden parent, Cmd.none )
@@ -791,6 +810,22 @@ update msg model =
 
                 Nothing ->
                     ( model, Cmd.none )
+
+        ChangeSubCommentCaptchaAnswer answer ->
+            ( model
+                |> setSubmissionInfo
+                    (model.subInfo
+                        |> setCommentSubmitting
+                            (case model.subInfo.commentSubmitting of
+                                Just submitting ->
+                                    Just (submitting |> setCommentCaptchaAnswer (answer |> String.toLower))
+
+                                Nothing ->
+                                    model.subInfo.commentSubmitting
+                            )
+                    )
+            , Cmd.none
+            )
 
 
 port loadPost : String -> Cmd msg

@@ -3,8 +3,12 @@ import { Elm } from './Main.elm';
 import * as serviceWorker from './serviceWorker';
 import GUN from 'gun';
 import SEA from 'gun/sea';
+import 'gun/lib/radix';
+import 'gun/lib/radisk';
+import 'gun/lib/store';
+import 'gun/lib/rindexed';
 
-const gun = GUN({peers: ['https://dubchan.herokuapp.com/gun']});
+const gun = GUN({peers: ['https://dubchan.herokuapp.com/gun'], localStorage: false});
 
 const scrollDebounce = 100;
 let debounceTimer = null;
@@ -21,9 +25,7 @@ app.ports.copy.subscribe((s) => {
 
 app.ports.loadCaptcha.subscribe((p) => {
   const n = parseInt(p.hash.substring(p.hash.length - 2, p.hash.length), 16);
-  console.log(p, n);
   captchaFor(p, n, [], (chain) => {
-    //console.log(chain, p);
     if (chain.length == 0)
       return;
 
@@ -36,7 +38,7 @@ const captchaFor = (curr, n, chain, callback) => {
     callback(chain);
   }
 
-  gun.get('#posts').get(curr.prev).once((prevStr) => {
+  const analysis = (prevStr) => {
     if (prevStr === undefined) {
       callback(chain);
 
@@ -58,6 +60,50 @@ const captchaFor = (curr, n, chain, callback) => {
     } catch (e) {
       console.error(e);
     }
+  };
+
+  if (curr.prev === undefined && curr.parent !== undefined) {
+    rootFor(curr, (rootStr) => {
+      try {
+        const root = JSON.parse(rootStr);
+
+        if (root.timestamp <= 1683831536) {
+          gun.get('#posts').get('WpsHb7YL5nA8qeYRNCuJ6NmGIlCbMCkiZj0gowjJmXc=').once((alternateStr) => {
+            try {
+              const alternate = JSON.parse(alternateStr);
+              captchaFor(alternate, n, chain, callback);
+            } catch (e) {
+              console.error(e);
+            }
+          });
+
+
+          return;
+        }
+
+        analysis(rootStr);
+      } catch (e) {
+        console.error(e);
+      }
+    });
+  }
+
+  gun.get('#posts').get(curr.prev).once(analysis);
+};
+
+const rootFor = (curr, callback) => {
+  gun.get('#comments').get(curr.parent).once((prevStr) => {
+    try {
+      const prev = JSON.parse(prevStr);
+
+      rootFor(prev, callback);
+    } catch (e) {
+      console.error(e);
+    }
+  });
+
+  gun.get('#posts').get(curr.parent).once((prevStr) => {
+    callback(prevStr);
   });
 };
 
@@ -85,6 +131,8 @@ app.ports.getComments.subscribe((post) => {
     try {
       const json = JSON.parse(str);
       if (json.parent !== undefined) {
+        gun.get('#comments').get(id).put(str);
+
         app.ports.commentIn.send({ ...json, id: id, nonce: json.nonce ?? 0, hash: json.hash ?? "", content: json.content ?? null, captchaAnswer: json.captchaAnswer });
       }
     } catch (e) {
@@ -103,10 +151,6 @@ const loadChunk = (timestamp) => {
       if (json.title !== undefined) {
         const post = json;
         const sanitized = { timestamp: post.timestamp, title: post.title, text: post.text, id: id, comments: null, content: null, nComments: 0, nonce: post.nonce ?? 0, hash: post.hash ?? "", uniqueFactor: 0.0, prev: post.prev, captcha: post.captcha, captchaAnswer: post.captchaAnswer };
-
-        if (post.title.timestamp > 1683831536) {
-          console.log(post);
-        }
 
         if (post.content !== null) {
           const rich = { ...sanitized, content: post.content };
@@ -207,6 +251,7 @@ app.ports.submitComment.subscribe(async ([comment, rawParent]) => {
 
     gun.get('#comments/' + comment.parent).get(hash).put(data);
     gun.get('#posts').get(chunk(comment.timestamp) + '#' + id).put(parentStr);
+    gun.get('#comments').get(hash).put(data);
   });
 });
 

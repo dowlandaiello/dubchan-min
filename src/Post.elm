@@ -650,6 +650,12 @@ viewCommentArea captcha captchaAnswer feedback submission =
                         ]
                         [ text "video" ]
                     ]
+                , if captcha /= "" then
+                    div [ class "commentCaptchaSection" ]
+                        [ img [ src captcha ] [], input [ placeholder "Captcha answer", onInput ChangeSubCommentCaptchaAnswer, value captchaAnswer ] [] ]
+
+                  else
+                    text ""
                 ]
             , div [ class "commentInputActions" ]
                 [ img [ onClick ClearSub, class "cancel", src "/trash.svg" ] []

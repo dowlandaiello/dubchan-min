@@ -606,14 +606,39 @@ body {
 
 .commentInputArea {
   display: flex;
-  flex-flow: row nowrap;
+  flex-flow: column nowrap;
   justify-content: space-between;
   align-items: flex-end;
+  margin-top: 0.5em;
 }
 
 .commentInputs {
   width: 100%;
-  margin-right: 0.5em;
+}
+
+.commentCaptchaSection {
+  margin-top: 0.5em;
+}
+
+.commentCaptchaSection img {
+  width: 100%;
+}
+
+.commentInputActions>*:first-child {
+  margin-left: 0;
+}
+
+.commentInputActions>*:last-child {
+  width: 100%;
+}
+
+.commentInputActions {
+  margin-top: 1em;
+  width: 100%;
+}
+
+.commentInputs {
+  margin-right: 0;
 }
 
 .commentContentInput {
@@ -686,7 +711,6 @@ body {
   padding-left: 0.5em;
   padding-right: 0.5em;
 
-  margin-left: 1em;
   width: 1em;
 }
 
@@ -827,29 +851,6 @@ body {
 @media (max-width: 716px) {
   .viewerBody {
     width: 100%;
-  }
-
-  .commentInputArea {
-    flex-flow: column nowrap;
-    margin-top: 0.5em;
-
-  }
-
-  .commentInputActions>*:first-child {
-    margin-left: 0;
-  }
-
-  .commentInputActions>*:last-child {
-    width: 100%;
-  }
-
-  .commentInputActions {
-    margin-top: 1em;
-    width: 100%;
-  }
-
-  .commentInputs {
-    margin-right: 0;
   }
 }
 

@@ -41,3 +41,4 @@ type Msg
     | RefreshCommentCaptcha
     | LoadedCaptcha JD.Value
     | ChangeSubCaptchaAnswer String
+    | ChangeSubCommentCaptchaAnswer String
