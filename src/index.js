@@ -21,7 +21,7 @@ app.ports.copy.subscribe((s) => {
 
 app.ports.loadCaptcha.subscribe((p) => {
   const n = parseInt(p.hash.substring(p.hash.length - 2, p.hash.length), 16);
-  //console.log(p, n);
+  console.log(p, n);
   captchaFor(p, n, [], (chain) => {
     //console.log(chain, p);
     if (chain.length == 0)
@@ -103,6 +103,10 @@ const loadChunk = (timestamp) => {
       if (json.title !== undefined) {
         const post = json;
         const sanitized = { timestamp: post.timestamp, title: post.title, text: post.text, id: id, comments: null, content: null, nComments: 0, nonce: post.nonce ?? 0, hash: post.hash ?? "", uniqueFactor: 0.0, prev: post.prev, captcha: post.captcha, captchaAnswer: post.captchaAnswer };
+
+        if (post.title.timestamp > 1683831536) {
+          console.log(post);
+        }
 
         if (post.content !== null) {
           const rich = { ...sanitized, content: post.content };

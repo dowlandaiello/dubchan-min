@@ -38,5 +38,6 @@ type Msg
     | GotCaptcha JD.Value
     | NewQuote String
     | RefreshPostCaptcha
+    | RefreshCommentCaptcha
     | LoadedCaptcha JD.Value
     | ChangeSubCaptchaAnswer String

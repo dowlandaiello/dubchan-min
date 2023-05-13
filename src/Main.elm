@@ -159,6 +159,11 @@ setSubmitting s m =
     { m | submitting = s }
 
 
+setCommentSubmitting : Maybe Comment -> SubmissionInfo -> SubmissionInfo
+setCommentSubmitting s m =
+    { m | commentSubmitting = s }
+
+
 setCommentSubmission : CommentSubmission -> SubmissionInfo -> SubmissionInfo
 setCommentSubmission s m =
     { m | commentSubmission = s }
@@ -383,7 +388,7 @@ viewComment highlightedComment model comment =
                     ]
                 , div [ class "commentContent" ] [ viewMultimedia comment.content, viewCommentText comment.text ]
                 , if replying then
-                    viewCommentArea model.subInfo.submissionFeedback model.subInfo.commentSubmission
+                    viewCommentArea (model.subInfo.commentSubmitting |> M.map .hash |> M.andThen (\id -> D.get id model.feedInfo.captchas |> M.map .data) |> M.withDefault "") (model.subInfo.commentSubmitting |> M.andThen .captchaAnswer |> M.withDefault "") model.subInfo.submissionFeedback model.subInfo.commentSubmission
 
                   else
                     text ""
@@ -437,7 +442,7 @@ viewQotd m =
 viewQuickLinks : Html Msg
 viewQuickLinks =
     div [ class "linksArea" ]
-        [ p [ onClick (SelectPost (Just "p207+dcU6eJOzXyIVa6BxJDvBA0unmUXYweQny1SEzI=")) ] [ text "About" ], p [ onClick (SelectPost (Just "yhKvB2keb6X1U+IeU/LAhppLUCIXRyaDLxkek0T4Ag4=")) ] [ text "Contact" ], p [ onClick (SelectPost (Just "xqtklwedVIZKEL8MpZgWg2ktIPp8FE1FIvCbvG51r04=")) ] [ text "Donations" ], p [ onClick (SelectPost (Just "eAU+0RjyMATQsnI/l8HYl9EYy2Y6dtcokHkZ5UWr8VI=")) ] [ text "Discord" ] ]
+        [ p [ onClick (SelectPost (Just "p207+dcU6eJOzXyIVa6BxJDvBA0unmUXYweQny1SEzI=")) ] [ text "About" ], p [ onClick (SelectPost (Just "yhKvB2keb6X1U+IeU/LAhppLUCIXRyaDLxkek0T4Ag4=")) ] [ text "Contact" ], p [ onClick (SelectPost (Just "eAU+0RjyMATQsnI/l8HYl9EYy2Y6dtcokHkZ5UWr8VI=")) ] [ text "Discord" ] ]
 
 
 init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
@@ -537,7 +542,13 @@ update msg model =
                         hashed =
                             { post | hash = postId (Time.millisToPosix (post.timestamp * 1000)) (submissionFromPost post) }
                     in
-                    ( model |> addPost chunk.timestamp post, Cmd.batch [ getComments post.id, loadCaptcha (hashed |> postEncoder) ] )
+                    ( model |> addPost chunk.timestamp post
+                    , if not (D.member post.hash model.feedInfo.captchas) then
+                        getComments post.id
+
+                      else
+                        Cmd.batch [ getComments post.id, loadCaptcha (hashed |> postEncoder) ]
+                    )
 
                 otherwise ->
                     ( model, Cmd.none )
@@ -723,7 +734,16 @@ update msg model =
         ValidateComment ->
             case subContentValid model.subInfo.commentSubmission of
                 Ok _ ->
-                    update SubmitComment model
+                    case model.subInfo.head of
+                        Just head ->
+                            let
+                                submitting =
+                                    model.subInfo.commentSubmission |> commentFromSubmission (epochsComments (Time.posixToMillis model.time // 1000)) model.time
+                            in
+                            update RefreshCommentCaptcha (model |> setSubmissionInfo (model.subInfo |> setCommentSubmitting (Just submitting)))
+
+                        Nothing ->
+                            ( model |> setSubmissionInfo (model.subInfo |> setSubmissionFeedback "No previous post to attach to."), Cmd.none )
 
                 Err e ->
                     ( model |> setSubmissionInfo (model.subInfo |> setSubmissionFeedback e), Cmd.none )
@@ -763,6 +783,14 @@ update msg model =
                     )
             , Cmd.none
             )
+
+        RefreshCommentCaptcha ->
+            case model.subInfo.commentSubmitting of
+                Just submitting ->
+                    ( model, loadCaptcha (submitting |> commentEncoder) )
+
+                Nothing ->
+                    ( model, Cmd.none )
 
 
 port loadPost : String -> Cmd msg
@@ -862,7 +890,7 @@ view model =
                             text ""
 
                           else
-                            viewCommentArea model.subInfo.submissionFeedback model.subInfo.commentSubmission
+                            viewCommentArea (model.subInfo.commentSubmitting |> M.map .hash |> M.andThen (\id -> D.get id model.feedInfo.captchas |> M.map .data) |> M.withDefault "") (model.subInfo.commentSubmitting |> M.andThen .captchaAnswer |> M.withDefault "") model.subInfo.submissionFeedback model.subInfo.commentSubmission
                         , viewPostComments model
                         ]
                     ]

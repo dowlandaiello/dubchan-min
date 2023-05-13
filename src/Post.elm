@@ -623,8 +623,8 @@ viewPost blurred nComments verified post =
         ]
 
 
-viewCommentArea : String -> CommentSubmission -> Html Msg
-viewCommentArea feedback submission =
+viewCommentArea : String -> String -> String -> CommentSubmission -> Html Msg
+viewCommentArea captcha captchaAnswer feedback submission =
     div [ class "commentDrawerArea" ]
         [ div [ class "commentInputArea" ]
             [ div [ class "commentInputs" ]
@@ -651,7 +651,14 @@ viewCommentArea feedback submission =
                         [ text "video" ]
                     ]
                 ]
-            , div [ class "commentInputActions" ] [ img [ onClick ClearSub, class "cancel", src "/trash.svg" ] [], p [ onClick ValidateComment ] [ text "Submit" ] ]
+            , div [ class "commentInputActions" ]
+                [ img [ onClick ClearSub, class "cancel", src "/trash.svg" ] []
+                , if captcha /= "" then
+                    p [ onClick SubmitComment ] [ text "Submit" ]
+
+                  else
+                    p [ onClick ValidateComment ] [ text "Next" ]
+                ]
             ]
         , if feedback /= "" then
             p [ class "feedback" ] [ text feedback ]
