@@ -2,9 +2,9 @@ module Post exposing (..)
 
 import Captcha exposing (Captcha, captchaDecoder, captchaEncoder)
 import Hash exposing (Hash)
-import Html exposing (Html, a, div, h1, iframe, img, input, label, p, text, textarea, video)
+import Html exposing (Attribute, Html, a, div, h1, iframe, img, input, label, p, text, textarea, video)
 import Html.Attributes exposing (class, controls, for, height, href, id, loop, placeholder, preload, property, src, target, title, value, width)
-import Html.Events exposing (onClick, onInput)
+import Html.Events exposing (on, onClick, onInput)
 import Json.Decode as JD exposing (Decoder, Error, field, float, int, list, map2, map3, map5, map7, map8, maybe, nullable, string)
 import Json.Decode.Extra exposing (andMap)
 import Json.Encode as JE
@@ -440,29 +440,38 @@ getChunkTime t =
     t // 86400 * 86400
 
 
-viewMultimedia : Maybe Multimedia -> Html Msg
-viewMultimedia m =
+viewMultimedia : Maybe (Decoder Msg) -> Maybe (Decoder Msg) -> Maybe Multimedia -> Html Msg
+viewMultimedia onError onLoad m =
+    let
+        eventAttrs =
+            [ onError |> M.map (on "error"), onLoad |> M.map (on "load") ] |> L.filterMap identity
+    in
     case m of
         Just media ->
             if S.contains "youtube.com" media.src then
-                iframe [ src (getYtEmbed media.src), class "content", width 560, height 315 ] []
+                iframe ([ src (getYtEmbed media.src), class "content", width 560, height 315 ] ++ eventAttrs) []
 
             else if S.contains "youtu.be" media.src then
-                iframe [ src (getYtbeEmbed media.src), class "content", width 560, height 315 ] []
+                iframe ([ src (getYtbeEmbed media.src), class "content", width 560, height 315 ] ++ eventAttrs) []
 
             else if S.contains "rumble.com/embed" media.src then
-                iframe [ src media.src, class "content", width 560, height 315 ] []
+                iframe ([ src media.src, class "content", width 560, height 315 ] ++ eventAttrs) []
 
             else
                 case media.kind of
                     Image ->
-                        img [ src media.src, class "content" ] []
+                        img ([ src media.src, class "content" ] ++ eventAttrs) []
 
                     Video ->
-                        video [ src media.src, class "content", preload "metadata", property "muted" (JE.bool True), loop True, controls True ] []
+                        video ([ src media.src, class "content", preload "metadata", property "muted" (JE.bool True), loop True, controls True ] ++ eventAttrs) []
 
         Nothing ->
             text ""
+
+
+viewMultimediaSub : Maybe Multimedia -> Html Msg
+viewMultimediaSub m =
+    div [ class "multimediaSub" ] [ viewMultimedia (Just (JD.succeed (SetSubContentValid False))) (Just (JD.succeed (SetSubContentValid True))) m ]
 
 
 viewMultimediaSus : Bool -> Maybe Multimedia -> String -> Html Msg
@@ -681,7 +690,7 @@ viewSubmitPost captcha captchaAnswer feedback submission =
         , input [ id "titleInput", placeholder "Post Title", onInput ChangeSubTitle, value submission.title ] []
         , div [ class "bodyInputArea" ]
             [ if submission.content /= "" then
-                viewMultimedia (Just (Multimedia submission.content submission.contentKind))
+                viewMultimediaSub (Just (Multimedia submission.content submission.contentKind))
 
               else
                 text ""

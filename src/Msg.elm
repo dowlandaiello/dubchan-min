@@ -42,3 +42,4 @@ type Msg
     | LoadedCaptcha JD.Value
     | ChangeSubCaptchaAnswer String
     | ChangeSubCommentCaptchaAnswer String
+    | SetSubContentValid Bool

@@ -432,13 +432,35 @@ body {
   display: flex;
   flex-flow: row nowrap;
   justify-content: flex-start;
-  align-items: flex-start
+  align-items: stretch;
 }
 
-.bodyInputArea .content {
+.bodyInputArea .multimediaSub {
   width: 30%;
   margin-right: 0.5em;
+}
+
+.multimediaSub {
+  position: relative;
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.multimediaSub>*:first-child {
   border-radius: 5px;
+  height: 100%;
+  object-fit: cover;
+}
+
+.multimediaSub>p {
+  position: absolute;
+  text-align: center;
+  left: 0;
+  right: 0;
+  opacity: 0.6;
+  color: #eb4034;
 }
 
 .bodyInput {
@@ -851,6 +873,15 @@ body {
 @media (max-width: 716px) {
   .viewerBody {
     width: 100%;
+  }
+
+  .bodyInputArea {
+    flex-flow: column nowrap;
+  }
+
+  .bodyInputArea .multimediaSub {
+    width: 60%;
+    align-self: center;
   }
 }
 

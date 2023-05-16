@@ -48,6 +48,7 @@ type alias FeedInfo =
     , visibleMedia : S.Set String
     , blurImages : Bool
     , lastChunk : Int
+    , lastChunkPaginated : Int
     , qotd : String
     , feed : D.Dict String Post
     , feedDisplay : D.Dict Int (List Post)
@@ -152,6 +153,11 @@ setCommentCaptchaAnswer s c =
 setLastChunk : Int -> FeedInfo -> FeedInfo
 setLastChunk c m =
     { m | lastChunk = c }
+
+
+setLastChunkPaginated : Int -> FeedInfo -> FeedInfo
+setLastChunkPaginated c m =
+    { m | lastChunkPaginated = c }
 
 
 setSubmission : Submission -> SubmissionInfo -> SubmissionInfo
@@ -391,7 +397,7 @@ viewComment highlightedComment model comment =
                         ]
                         []
                     ]
-                , div [ class "commentContent" ] [ viewMultimedia comment.content, viewCommentText comment.text ]
+                , div [ class "commentContent" ] [ viewMultimedia Nothing Nothing comment.content, viewCommentText comment.text ]
                 , if replying then
                     viewCommentArea (model.subInfo.commentSubmitting |> M.map .hash |> M.andThen (\id -> D.get id model.feedInfo.captchas |> M.map .data) |> M.withDefault "") (model.subInfo.commentSubmitting |> M.andThen .captchaAnswer |> M.withDefault "") model.subInfo.submissionFeedback model.subInfo.commentSubmission
 
@@ -468,7 +474,7 @@ init flags url key =
     in
     let
         model =
-            Model key url (SubmissionInfo (Submission "" "" "" 0 Image) (CommentSubmission "" "" "" Image 0) Nothing Nothing "" Nothing (Captcha "" "")) (FeedInfo "" S.empty True 0 "" (D.fromList []) (D.fromList []) (D.fromList []) (D.fromList []) Nothing S.empty) (Time.millisToPosix 0)
+            Model key url (SubmissionInfo (Submission "" "" "" 0 Image) (CommentSubmission "" "" "" Image 0) Nothing Nothing "" Nothing (Captcha "" "")) (FeedInfo "" S.empty True 0 0 "" (D.fromList []) (D.fromList []) (D.fromList []) (D.fromList []) Nothing S.empty) (Time.millisToPosix 0)
     in
     case normalized of
         Just post ->
@@ -487,7 +493,20 @@ update msg model =
                     Time.posixToMillis t // 1000
             in
             if getChunkTime unix - model.feedInfo.lastChunk > 86400 then
-                ( { model | time = t } |> setFeedInfo (model.feedInfo |> setLastChunk (getChunkTime unix)), loadChunk (getChunkTime unix) )
+                ( { model | time = t }
+                    |> setFeedInfo
+                        (model.feedInfo
+                            |> setLastChunk (getChunkTime unix)
+                            |> setLastChunkPaginated
+                                (if model.feedInfo.lastChunkPaginated == 0 then
+                                    getChunkTime unix
+
+                                 else
+                                    model.feedInfo.lastChunkPaginated
+                                )
+                        )
+                , loadChunk (getChunkTime unix)
+                )
 
             else
                 ( { model | time = t }, Cmd.none )
@@ -718,9 +737,9 @@ update msg model =
         ScrolledBottom ->
             let
                 newChunk =
-                    model.feedInfo.lastChunk - 86400
+                    model.feedInfo.lastChunkPaginated - 86400
             in
-            ( model |> setFeedInfo (model.feedInfo |> setLastChunk newChunk), loadChunk newChunk )
+            ( model |> setFeedInfo (model.feedInfo |> setLastChunkPaginated newChunk), loadChunk newChunk )
 
         GotCaptcha captchaJson ->
             case JD.decodeValue captchaDecoder captchaJson of
@@ -822,6 +841,21 @@ update msg model =
 
                                 Nothing ->
                                     model.subInfo.commentSubmitting
+                            )
+                    )
+            , Cmd.none
+            )
+
+        SetSubContentValid valid ->
+            ( model
+                |> setSubmissionInfo
+                    (model.subInfo
+                        |> setSubmissionFeedback
+                            (if valid then
+                                ""
+
+                             else
+                                "Your link is broken. Do not post."
                             )
                     )
             , Cmd.none

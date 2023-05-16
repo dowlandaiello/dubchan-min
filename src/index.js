@@ -114,6 +114,8 @@ app.ports.loadPost.subscribe((m) => {
         const post = { ...JSON.parse(postStr), id: m, nComments: 0, uniqueFactor: 0.0 };
         const epoched = { ...post, nonce: post.nonce ?? 0, hash: post.hash ?? "", prev: post.prev, captcha: post.captcha };
 
+        console.log(epoched);
+
         if (epoched.content === null) {
           app.ports.postLoaded.send({ ...epoched, comments: [] });
         } else {
@@ -126,8 +128,8 @@ app.ports.loadPost.subscribe((m) => {
   });
 });
 
-app.ports.getComments.subscribe((post) => {
-  gun.get('#comments/' + post).map().once((str, id) => {
+app.ports.getComments.subscribe(async (post) => {
+  const loadComments = (str, id) => {
     try {
       const json = JSON.parse(str);
       if (json.parent !== undefined) {
@@ -138,10 +140,13 @@ app.ports.getComments.subscribe((post) => {
     } catch (e) {
       console.error(e);
     }
-  });
+  };
+
+  gun.get('#comments/' + post).map().once(loadComments);
 });
 
 const loadChunk = (timestamp) => {
+  console.log(timestamp);
   gun.get('#posts').get({ '.': { '*': timestamp.toString() }}).map().once(async (str, id) => {
     try {
       const json = JSON.parse(str);
