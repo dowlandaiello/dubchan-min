@@ -147,7 +147,7 @@ app.ports.getComments.subscribe(async (post) => {
 
 const loadChunk = (timestamp) => {
   console.log(timestamp);
-  gun.get('#posts').get({ '.': { '*': timestamp.toString() }}).map().once(async (str, id) => {
+  gun.get('#chunk_' + timestamp.toString()).map().once(async (str, id) => {
     try {
       const json = JSON.parse(str);
       const id = await SEA.work(str, null, null, { name: 'SHA-256' });
@@ -245,7 +245,7 @@ app.ports.submitPost.subscribe(async (post) => {
   const data = JSON.stringify(post);
   const hash = await SEA.work(data, null, null, { name: 'SHA-256' });
 
-  gun.get('#posts').get(chunk(post.timestamp) + '#' + hash).put(data);
+  gun.get('#chunk_' + chunk(post.timestamp)).get(hash).put(data);
   gun.get('#posts').get(hash).put(data);
 });
 
@@ -255,7 +255,7 @@ app.ports.submitComment.subscribe(async ([comment, rawParent]) => {
     const hash = await SEA.work(data, null, null, { name: 'SHA-256' });
 
     gun.get('#comments/' + comment.parent).get(hash).put(data);
-    gun.get('#posts').get(chunk(comment.timestamp) + '#' + id).put(parentStr);
+    gun.get('#chunk_' + chunk(comment.timestamp)).get(id).put(parentStr);
     gun.get('#comments').get(hash).put(data);
   });
 });
