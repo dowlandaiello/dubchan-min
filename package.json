@@ -1,0 +1,33 @@
+{
+  "name": "dubchan-min",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "git@github.com:dowlandaiello/dubchan-min.git",
+  "author": "Dowland Aiello <dowlandaiello@gmail.com>",
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "@chainsafe/libp2p-noise": "^12.0.0",
+    "@chainsafe/libp2p-yamux": "^4.0.2",
+    "@libp2p/bootstrap": "^8.0.0",
+    "@libp2p/kad-dht": "^9.3.3",
+    "@libp2p/mplex": "^8.0.3",
+    "@libp2p/webrtc": "^2.0.4",
+    "@libp2p/webrtc-star": "^7.0.0",
+    "@libp2p/websockets": "^6.0.1",
+    "@libp2p/webtransport": "^2.0.1",
+    "elm": "^0.19.1-5",
+    "gun": "^0.2020.1239",
+    "libp2p": "^0.45.1",
+    "vite": "^4.3.8"
+  },
+  "devDependencies": {
+    "buffer": "^5.5.0",
+    "process": "^0.11.10",
+    "vite-plugin-elm": "^2.8.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  }
+}

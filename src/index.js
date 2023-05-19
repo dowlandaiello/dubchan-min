@@ -1,4 +1,3 @@
-import './main.css';
 import { Elm } from './Main.elm';
 import * as serviceWorker from './serviceWorker';
 import GUN from 'gun';
@@ -7,6 +6,18 @@ import 'gun/lib/radix';
 import 'gun/lib/radisk';
 import 'gun/lib/store';
 import 'gun/lib/rindexed';
+import { createLibp2p } from 'libp2p';
+import { circuitRelayTransport } from 'libp2p/circuit-relay';
+import { identifyService } from 'libp2p/identify';
+import { kadDHT } from '@libp2p/kad-dht';
+import { webSockets } from '@libp2p/websockets';
+import { webTransport } from '@libp2p/webtransport';
+import { webRTCDirect, webRTC } from '@libp2p/webrtc';
+import { noise } from '@chainsafe/libp2p-noise';
+import { mplex } from '@libp2p/mplex';
+import { yamux } from '@chainsafe/libp2p-yamux';
+import { bootstrap } from '@libp2p/bootstrap';
+import { loadCaptcha, genCaptcha } from './captcha';
 
 const gun = GUN({peers: ['https://dubchan.herokuapp.com/gun'], localStorage: false});
 
@@ -17,269 +28,124 @@ const app = Elm.Main.init({
   node: document.getElementById('root')
 });
 
-const chunk = (timestamp) => Math.floor(timestamp / 86400) * 86400;
+const main = async () => {
+  const chunk = (timestamp) => Math.floor(timestamp / 86400) * 86400;
 
-app.ports.copy.subscribe((s) => {
-  navigator.clipboard.writeText(s);
-});
-
-app.ports.loadCaptcha.subscribe((p) => {
-  const n = parseInt(p.hash.substring(p.hash.length - 2, p.hash.length), 16);
-  captchaFor(p, n, [], (chain) => {
-    if (chain.length == 0)
-      return;
-
-    app.ports.loadedCaptcha.send({ post: p.hash, captcha: chain[n % chain.length].captcha });
+  app.ports.copy.subscribe((s) => {
+    navigator.clipboard.writeText(s);
   });
-});
 
-const captchaFor = (curr, n, chain, callback) => {
-  if (n == 0) {
-    callback(chain);
-  }
+  app.ports.loadCaptcha.subscribe(loadCaptcha(gun, app));
 
-  const analysis = (prevStr) => {
-    if (prevStr === undefined) {
-      callback(chain);
+  app.ports.loadPost.subscribe((m) => {
+    gun.get('#posts').get(m).once((postStr) => {
+      if (postStr !== undefined) {
+        try {
+          const post = { ...JSON.parse(postStr), id: m, nComments: 0, uniqueFactor: 0.0 };
+          const epoched = { ...post, nonce: post.nonce ?? 0, hash: post.hash ?? "", prev: post.prev, captcha: post.captcha };
 
-      return;
-    }
+          console.log(epoched);
 
-    try {
-      const prev = JSON.parse(prevStr);
-
-      if (prev.captcha === undefined || prev.captcha.answer === undefined || prev.captcha.answer.length === 5 || prev.timestamp <= 1683831536) {
-        callback(chain);
-
-        return;
-      }
-
-      chain.push(prev);
-
-      captchaFor(prev, n - 1, chain, callback);
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  if (curr.prev === undefined && curr.parent !== undefined) {
-    rootFor(curr, (rootStr) => {
-      try {
-        const root = JSON.parse(rootStr);
-
-        if (root.timestamp <= 1683831536) {
-          gun.get('#posts').get('WpsHb7YL5nA8qeYRNCuJ6NmGIlCbMCkiZj0gowjJmXc=').once((alternateStr) => {
-            try {
-              const alternate = JSON.parse(alternateStr);
-              captchaFor(alternate, n, chain, callback);
-            } catch (e) {
-              console.error(e);
-            }
-          });
-
-
-          return;
+          if (epoched.content === null) {
+            app.ports.postLoaded.send({ ...epoched, comments: [] });
+          } else {
+            app.ports.postLoaded.send({ ...epoched, comments: [], content: post.content });
+          }
+        } catch (e) {
+          console.error(e);
         }
+      }
+    });
+  });
 
-        analysis(rootStr);
+  app.ports.getComments.subscribe(async (post) => {
+    const loadComments = (str, id) => {
+      try {
+        const json = JSON.parse(str);
+        if (json.parent !== undefined) {
+          gun.get('#comments').get(id).put(str);
+
+          app.ports.commentIn.send({ ...json, id: id, nonce: json.nonce ?? 0, hash: json.hash ?? "", content: json.content ?? null, captchaAnswer: json.captchaAnswer });
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    gun.get('#comments/' + post).map().once(loadComments);
+  });
+
+  const loadChunk = (timestamp) => {
+    console.log(timestamp);
+    gun.get('#chunk_' + timestamp.toString()).map().once(async (str, id) => {
+      try {
+        const json = JSON.parse(str);
+        const id = await SEA.work(str, null, null, { name: 'SHA-256' });
+
+        // This is a post
+        if (json.title !== undefined) {
+          const post = json;
+          const sanitized = { timestamp: post.timestamp, title: post.title, text: post.text, id: id, comments: null, content: null, nComments: 0, nonce: post.nonce ?? 0, hash: post.hash ?? "", uniqueFactor: 0.0, prev: post.prev, captcha: post.captcha, captchaAnswer: post.captchaAnswer };
+
+          if (post.content !== null) {
+            const rich = { ...sanitized, content: post.content };
+
+            app.ports.postIn.send({ timestamp: timestamp, post: rich });
+          } else {
+            app.ports.postIn.send({ timestamp: timestamp, post: sanitized });
+          }
+        }
       } catch (e) {
         console.error(e);
       }
     });
-  }
-
-  gun.get('#posts').get(curr.prev).once(analysis);
-};
-
-const rootFor = (curr, callback) => {
-  gun.get('#comments').get(curr.parent).once((prevStr) => {
-    try {
-      const prev = JSON.parse(prevStr);
-
-      rootFor(prev, callback);
-    } catch (e) {
-      console.error(e);
-    }
-  });
-
-  gun.get('#posts').get(curr.parent).once((prevStr) => {
-    callback(prevStr);
-  });
-};
-
-app.ports.loadPost.subscribe((m) => {
-  gun.get('#posts').get(m).once((postStr) => {
-    if (postStr !== undefined) {
-      try {
-        const post = { ...JSON.parse(postStr), id: m, nComments: 0, uniqueFactor: 0.0 };
-        const epoched = { ...post, nonce: post.nonce ?? 0, hash: post.hash ?? "", prev: post.prev, captcha: post.captcha };
-
-        console.log(epoched);
-
-        if (epoched.content === null) {
-          app.ports.postLoaded.send({ ...epoched, comments: [] });
-        } else {
-          app.ports.postLoaded.send({ ...epoched, comments: [], content: post.content });
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    }
-  });
-});
-
-app.ports.getComments.subscribe(async (post) => {
-  const loadComments = (str, id) => {
-    try {
-      const json = JSON.parse(str);
-      if (json.parent !== undefined) {
-        gun.get('#comments').get(id).put(str);
-
-        app.ports.commentIn.send({ ...json, id: id, nonce: json.nonce ?? 0, hash: json.hash ?? "", content: json.content ?? null, captchaAnswer: json.captchaAnswer });
-      }
-    } catch (e) {
-      console.error(e);
-    }
   };
 
-  gun.get('#comments/' + post).map().once(loadComments);
-});
+  app.ports.loadChunk.subscribe(loadChunk);
+  app.ports.genCaptcha.subscribe(genCaptcha(app));
 
-const loadChunk = (timestamp) => {
-  console.log(timestamp);
-  gun.get('#chunk_' + timestamp.toString()).map().once(async (str, id) => {
-    try {
-      const json = JSON.parse(str);
-      const id = await SEA.work(str, null, null, { name: 'SHA-256' });
-
-      // This is a post
-      if (json.title !== undefined) {
-        const post = json;
-        const sanitized = { timestamp: post.timestamp, title: post.title, text: post.text, id: id, comments: null, content: null, nComments: 0, nonce: post.nonce ?? 0, hash: post.hash ?? "", uniqueFactor: 0.0, prev: post.prev, captcha: post.captcha, captchaAnswer: post.captchaAnswer };
-
-        if (post.content !== null) {
-          const rich = { ...sanitized, content: post.content };
-
-          app.ports.postIn.send({ timestamp: timestamp, post: rich });
-        } else {
-          app.ports.postIn.send({ timestamp: timestamp, post: sanitized });
-        }
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  });
-};
-
-const randomColor = () => {
-  let r = Math.floor(Math.random()*256);
-  let g = Math.floor(Math.random()*256);
-  let b = Math.floor(Math.random()*256);
-  return 'rgb(' + r + ',' + g + ',' + b + ')';
-};
-
-const captcha = () => {
-  let showNum = [];
-  let canvasWinth = 700;
-  let canvasHeight = 146;
-  let canvas = document.getElementById('captchaGen');
-  let context = canvas.getContext('2d');
-  canvas.width = canvasWinth;
-  canvas.height = canvasHeight;
-  let sCode = 'A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,0,1,2,3,4,5,6,7,8,9,!,@,#,$,%,^,&,*,(,)';
-  let saCode = sCode.split(',');
-  let saCodeLen = saCode.length;
-  for (let i = 0; i <= 3; i++) {
-    let sIndex = Math.floor(Math.random()*saCodeLen);
-    let sDeg = (Math.random()*30*Math.PI) / 180;
-    let cTxt = saCode[sIndex];
-    showNum[i] = cTxt.toLowerCase();
-    let x = 200 + i*90;
-    let y = 90 + Math.random()*8;
-    context.font = 'bold 90px arial';
-    context.translate(x, y);
-    context.rotate(sDeg);
-
-    context.fillStyle = randomColor();
-    context.fillText(cTxt, 0, 0);
-
-    context.rotate(-sDeg);
-    context.translate(-x, -y);
-  }
-  for (let i = 0; i <= 5; i++) {
-    context.strokeStyle = randomColor();
-    context.beginPath();
-    context.moveTo(
-      Math.random() * canvasWinth,
-      Math.random() * canvasHeight
-    );
-    context.lineTo(
-      Math.random() * canvasWinth,
-      Math.random() * canvasHeight
-    );
-    context.stroke();
-  }
-  for (let i = 0; i < 6000; i++) {
-    context.strokeStyle = randomColor();
-    context.beginPath();
-    let x = Math.random() * canvasWinth;
-    let y = Math.random() * canvasHeight;
-    context.moveTo(x,y);
-    context.lineTo(x+1, y+1);
-    context.stroke();
-  }
-  return showNum.join('');
-};
-
-const genCaptcha = async () => {
-  const token = captcha();
-  const canvas = document.getElementById('captchaGen');
-  const parsed = { answer: token, data: canvas.toDataURL('image/jpeg') };
-  app.ports.gotCaptcha.send(parsed);
-};
-
-app.ports.loadChunk.subscribe(loadChunk);
-app.ports.genCaptcha.subscribe(genCaptcha);
-
-app.ports.submitPost.subscribe(async (post) => {
-  const data = JSON.stringify(post);
-  const hash = await SEA.work(data, null, null, { name: 'SHA-256' });
-
-  gun.get('#chunk_' + chunk(post.timestamp)).get(hash).put(data);
-  gun.get('#posts').get(hash).put(data);
-});
-
-app.ports.submitComment.subscribe(async ([comment, rawParent]) => {
-  gun.get('#posts').get(rawParent.id).once(async (parentStr, id) => {
-    const data = JSON.stringify(comment);
+  app.ports.submitPost.subscribe(async (post) => {
+    const data = JSON.stringify(post);
     const hash = await SEA.work(data, null, null, { name: 'SHA-256' });
 
-    gun.get('#comments/' + comment.parent).get(hash).put(data);
-    gun.get('#chunk_' + chunk(comment.timestamp)).get(id).put(parentStr);
-    gun.get('#comments').get(hash).put(data);
+    gun.get('#chunk_' + chunk(post.timestamp)).get(hash).put(data);
+    gun.get('#posts').get(hash).put(data);
   });
-});
 
-const feed = document.getElementsByClassName("feedContainer")[0];
+  app.ports.submitComment.subscribe(async ([comment, rawParent]) => {
+    gun.get('#posts').get(rawParent.id).once(async (parentStr, id) => {
+      const data = JSON.stringify(comment);
+      const hash = await SEA.work(data, null, null, { name: 'SHA-256' });
 
-setTimeout(() => {
-  feed.addEventListener('scroll', (e) => {
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => {
-      if (feed.scrollTop + feed.clientHeight >= feed.scrollHeight * 0.8) {
-        app.ports.scrolledBottom.send(true);
-      }
-    }, scrollDebounce);
-  }, { passive: true });
-}, 300);
+      gun.get('#comments/' + comment.parent).get(hash).put(data);
+      gun.get('#chunk_' + chunk(comment.timestamp)).get(id).put(parentStr);
+      gun.get('#comments').get(hash).put(data);
+    });
+  });
 
-setTimeout(() => {
-  if (feed.scrollTop + feed.clientHeight >= feed.scrollHeight * 0.8) {
-        app.ports.scrolledBottom.send(true);
-  }
-}, 1000);
+  const feed = document.getElementsByClassName("feedContainer")[0];
 
-genCaptcha();
+  setTimeout(() => {
+    feed.addEventListener('scroll', (e) => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        if (feed.scrollTop + feed.clientHeight >= feed.scrollHeight * 0.8) {
+          app.ports.scrolledBottom.send(true);
+        }
+      }, scrollDebounce);
+    }, { passive: true });
+  }, 300);
+
+  setTimeout(() => {
+    if (feed.scrollTop + feed.clientHeight >= feed.scrollHeight * 0.8) {
+          app.ports.scrolledBottom.send(true);
+    }
+  }, 1000);
+
+  genCaptcha();
+};
+
+main();
 
 window.gun = gun;
 window.sea = SEA;

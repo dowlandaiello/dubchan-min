@@ -53,3 +53,14 @@ flycheck_*.el
 # network security
 /network-security.data
 
+.parcel-cache
+
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+node_modules/
