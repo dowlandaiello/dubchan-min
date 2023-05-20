@@ -823,7 +823,7 @@ body {
 }
 
 .commentBody .contentContainer {
-  width: 20%;
+  min-width: 20%;
   margin: 0;
   margin-right: 0.5em;
   border-radius: 5px;
