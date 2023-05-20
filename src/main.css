@@ -795,11 +795,20 @@ body {
   align-items: flex-start;
 }
 
-.commentBody .content {
+.commentContent.expanded {
+  flex-flow: column nowrap;
+}
+
+.commentContent.expanded .contentContainer {
+  min-width: 70%;
+  margin-right: 0;
+  margin-bottom: 0.5em;
+}
+
+.commentBody .contentContainer {
   width: 20%;
   margin: 0;
   margin-right: 0.5em;
-  margin-bottom: 0.5em;
   border-radius: 5px;
 }
 

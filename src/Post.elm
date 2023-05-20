@@ -474,17 +474,27 @@ viewMultimediaSub m =
     div [ class "multimediaSub" ] [ viewMultimedia (Just (JD.succeed (SetSubContentValid False))) (Just (JD.succeed (SetSubContentValid True))) m ]
 
 
+viewExpandableMultimedia : Bool -> Maybe Multimedia -> String -> Html Msg
+viewExpandableMultimedia expanded m parentId =
+    case m of
+        Just media ->
+            div [ class "contentContainer", onClick (SetMediaExpanded (not expanded) parentId) ] [ viewMultimedia Nothing Nothing m ]
+
+        Nothing ->
+            text ""
+
+
 viewMultimediaSus : Bool -> Maybe Multimedia -> String -> Html Msg
 viewMultimediaSus blurred m parentId =
-    div [ class "contentContainer", onClick (SetMediaVisible (not blurred) parentId) ]
-        [ if blurred then
-            img [ src "/hide.svg", class "hideIcon" ] []
+    case m of
+        Just media ->
+            div [ class "contentContainer", onClick (SetMediaVisible (not blurred) parentId) ]
+                [ if blurred then
+                    img [ src "/hide.svg", class "hideIcon" ] []
 
-          else
-            text ""
-        , case m of
-            Just media ->
-                if S.contains "youtube.com" media.src then
+                  else
+                    text ""
+                , if S.contains "youtube.com" media.src then
                     iframe
                         [ src (getYtEmbed media.src)
                         , class "content"
@@ -498,7 +508,7 @@ viewMultimediaSus blurred m parentId =
                         ]
                         []
 
-                else if S.contains "youtu.be" media.src then
+                  else if S.contains "youtu.be" media.src then
                     iframe
                         [ src (getYtbeEmbed media.src)
                         , class "content"
@@ -512,7 +522,7 @@ viewMultimediaSus blurred m parentId =
                         ]
                         []
 
-                else if S.contains "rumble.com/embed" media.src then
+                  else if S.contains "rumble.com/embed" media.src then
                     iframe
                         [ src media.src
                         , if blurred then
@@ -526,7 +536,7 @@ viewMultimediaSus blurred m parentId =
                         ]
                         []
 
-                else
+                  else
                     case media.kind of
                         Image ->
                             img
@@ -555,10 +565,10 @@ viewMultimediaSus blurred m parentId =
                                 , controls True
                                 ]
                                 []
+                ]
 
-            Nothing ->
-                text ""
-        ]
+        Nothing ->
+            text ""
 
 
 descending a b =

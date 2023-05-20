@@ -13,7 +13,7 @@ import List as L
 import List.Extra as LE
 import Maybe as M
 import Msg exposing (Msg(..))
-import Post exposing (Comment, CommentSubmission, MultimediaKind(..), Post, Submission, commentDecoder, commentEncoder, commentFromSubmission, commentId, descending, fromSubmission, getChunkTime, isValidHash, postChunkDecoder, postDecoder, postEncoder, postId, pushComment, setContent, setContentKind, setText, setTitle, subContentValid, submissionFromComment, submissionFromPost, viewCommentArea, viewCommentText, viewMultimedia, viewPost, viewSubmitPost, viewTimestamp)
+import Post exposing (Comment, CommentSubmission, MultimediaKind(..), Post, Submission, commentDecoder, commentEncoder, commentFromSubmission, commentId, descending, fromSubmission, getChunkTime, isValidHash, postChunkDecoder, postDecoder, postEncoder, postId, pushComment, setContent, setContentKind, setText, setTitle, subContentValid, submissionFromComment, submissionFromPost, viewCommentArea, viewCommentText, viewExpandableMultimedia, viewMultimedia, viewPost, viewSubmitPost, viewTimestamp)
 import Random
 import Route exposing (..)
 import Set as S
@@ -46,6 +46,7 @@ type alias SubmissionInfo =
 type alias FeedInfo =
     { searchQuery : String
     , visibleMedia : S.Set String
+    , expandedMedia : S.Set String
     , blurImages : Bool
     , lastChunk : Int
     , lastChunkPaginated : Int
@@ -193,6 +194,11 @@ setSearchQuery s m =
 setViewing : Maybe Post -> FeedInfo -> FeedInfo
 setViewing p m =
     { m | viewing = p }
+
+
+setExpanded : S.Set String -> FeedInfo -> FeedInfo
+setExpanded e m =
+    { m | expandedMedia = e }
 
 
 setHead : Maybe Post -> SubmissionInfo -> SubmissionInfo
@@ -375,6 +381,10 @@ viewComment highlightedComment model comment =
             M.withDefault [] (commentsFor comment.id model) |> L.map (viewComment highlightedComment model)
     in
     let
+        expanded =
+            model.feedInfo.expandedMedia |> S.member comment.id
+    in
+    let
         commentContent =
             [ div
                 (if highlighted then
@@ -397,7 +407,14 @@ viewComment highlightedComment model comment =
                         ]
                         []
                     ]
-                , div [ class "commentContent" ] [ viewMultimedia Nothing Nothing comment.content, viewCommentText comment.text ]
+                , div
+                    (if expanded then
+                        [ class "commentContent", class "expanded" ]
+
+                     else
+                        [ class "commentContent" ]
+                    )
+                    [ viewExpandableMultimedia expanded comment.content comment.id, viewCommentText comment.text ]
                 , if replying then
                     viewCommentArea (model.subInfo.commentSubmitting |> M.map .hash |> M.andThen (\id -> D.get id model.feedInfo.captchas |> M.map .data) |> M.withDefault "") (model.subInfo.commentSubmitting |> M.andThen .captchaAnswer |> M.withDefault "") model.subInfo.submissionFeedback model.subInfo.commentSubmission
 
@@ -474,7 +491,7 @@ init flags url key =
     in
     let
         model =
-            Model key url (SubmissionInfo (Submission "" "" "" 0 Image) (CommentSubmission "" "" "" Image 0) Nothing Nothing "" Nothing (Captcha "" "")) (FeedInfo "" S.empty True 0 0 "" (D.fromList []) (D.fromList []) (D.fromList []) (D.fromList []) Nothing S.empty) (Time.millisToPosix 0)
+            Model key url (SubmissionInfo (Submission "" "" "" 0 Image) (CommentSubmission "" "" "" Image 0) Nothing Nothing "" Nothing (Captcha "" "")) (FeedInfo "" S.empty S.empty True 0 0 "" (D.fromList []) (D.fromList []) (D.fromList []) (D.fromList []) Nothing S.empty) (Time.millisToPosix 0)
     in
     case normalized of
         Just post ->
@@ -856,6 +873,21 @@ update msg model =
 
                              else
                                 "Your link is broken. Do not post."
+                            )
+                    )
+            , Cmd.none
+            )
+
+        SetMediaExpanded expanded id ->
+            ( model
+                |> setFeedInfo
+                    (model.feedInfo
+                        |> setExpanded
+                            (if expanded then
+                                S.insert id model.feedInfo.expandedMedia
+
+                             else
+                                S.remove id model.feedInfo.expandedMedia
                             )
                     )
             , Cmd.none
