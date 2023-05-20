@@ -114,8 +114,6 @@ app.ports.loadPost.subscribe((m) => {
         const post = { ...JSON.parse(postStr), id: m, nComments: 0, uniqueFactor: 0.0 };
         const epoched = { ...post, nonce: post.nonce ?? 0, hash: post.hash ?? "", prev: post.prev, captcha: post.captcha };
 
-        console.log(epoched);
-
         if (epoched.content === null) {
           app.ports.postLoaded.send({ ...epoched, comments: [] });
         } else {
@@ -146,7 +144,6 @@ app.ports.getComments.subscribe(async (post) => {
 });
 
 const loadChunk = (timestamp) => {
-  console.log(timestamp);
   gun.get('#chunk_' + timestamp.toString()).map().once(async (str, id) => {
     try {
       const json = JSON.parse(str);
@@ -275,7 +272,7 @@ setTimeout(() => {
 
 setTimeout(() => {
   if (feed.scrollTop + feed.clientHeight >= feed.scrollHeight * 0.8) {
-        app.ports.scrolledBottom.send(true);
+    app.ports.scrolledBottom.send(true);
   }
 }, 1000);
 
