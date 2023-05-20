@@ -543,6 +543,22 @@ body {
   background-color: #09071C;
   font-size: 1.5em;
   z-index: 2;
+  margin-top: 2em;
+}
+
+.logoBigLine {
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.betaMarker {
+  background-color: #6358FF;
+  border-radius: 5px;
+  margin: 0;
+  margin-left: 0.5em;
+  padding: 0.1em;
 }
 
 .logo img {
@@ -552,6 +568,7 @@ body {
 }
 
 .logo h1 {
+  margin-top: 0;
   margin-bottom: 0;
 }
 

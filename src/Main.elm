@@ -958,7 +958,7 @@ view model =
                             Nothing ->
                                 [ class "feed" ]
                         )
-                        [ div [ class "logo" ] [ img [ src "/logo.png" ] [], div [ class "logoText" ] [ h1 [] [ text "DubChan" ], p [] [ text "Anonymous. Unmoderated." ] ] ]
+                        [ div [ class "logo" ] [ img [ src "/logo.png" ] [], div [ class "logoText" ] [ div [ class "logoBigLine" ] [ h1 [] [ text "DubChan" ], p [ class "betaMarker" ] [ text "Beta" ] ], p [] [ text "Anonymous. Unmoderated." ] ] ]
                         , viewQuickLinks
                         , viewQotd model
                         , viewSubmitPost (model.subInfo.submitting |> M.map .hash |> M.andThen (\id -> D.get id model.feedInfo.captchas |> M.map .data) |> M.withDefault "") (model.subInfo.submitting |> M.andThen .captchaAnswer |> M.withDefault "") model.subInfo.submissionFeedback model.subInfo.submission
