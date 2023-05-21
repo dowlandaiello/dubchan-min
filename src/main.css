@@ -917,6 +917,7 @@ body {
   .bodyInputArea .multimediaSub {
     width: 60%;
     align-self: center;
+    margin-bottom: 0.5em;
   }
 }
 
