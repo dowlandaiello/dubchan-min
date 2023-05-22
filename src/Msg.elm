@@ -45,3 +45,4 @@ type Msg
     | SetSubContentValid Bool
     | SetMediaExpanded Bool String
     | RegenCommentCaptcha
+    | RegenPostCaptcha

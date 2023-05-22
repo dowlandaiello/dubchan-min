@@ -813,6 +813,26 @@ update msg model =
                 Nothing ->
                     ( model, Cmd.none )
 
+        RegenPostCaptcha ->
+            case model.subInfo.submitting of
+                Just submitting ->
+                    let
+                        nonce =
+                            submitting.nonce
+                    in
+                    let
+                        post =
+                            { submitting | nonce = nonce + 1 }
+                    in
+                    let
+                        hashed =
+                            { post | hash = postId (Time.millisToPosix (post.timestamp * 1000)) (submissionFromPost post) }
+                    in
+                    update RefreshPostCaptcha (model |> setSubmissionInfo (model.subInfo |> setSubmitting (Just hashed)))
+
+                Nothing ->
+                    ( model, Cmd.none )
+
         LoadedCaptcha captchaJson ->
             case JD.decodeValue captchaMsgDecoder captchaJson of
                 Ok captchaMsg ->

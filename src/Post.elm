@@ -744,9 +744,16 @@ viewSubmitPost captcha captchaAnswer feedback submission =
 
           else
             text ""
-        , if captcha /= "" then
-            p [ onClick SubmitPost, class "submit" ] [ text "Submit" ]
+        , div [ class "submitActions" ]
+            [ if captcha /= "" then
+                img [ class "refresh", src "/refresh.svg", onClick RegenPostCaptcha ] []
 
-          else
-            p [ onClick ValidatePost, class "submit" ] [ text "Next" ]
+              else
+                text ""
+            , if captcha /= "" then
+                p [ onClick SubmitPost, class "submit" ] [ text "Submit" ]
+
+              else
+                p [ onClick ValidatePost, class "submit" ] [ text "Next" ]
+            ]
         ]

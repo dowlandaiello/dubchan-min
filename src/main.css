@@ -427,6 +427,21 @@ body {
   margin-bottom: 1em;
 }
 
+.submitActions {
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.submitActions>*:last-child {
+  width: 100%;
+}
+
+.submitActions>*:first-child:not(:last-child) {
+    margin-right: 0.5em;
+}
+
 .captchaInput {
   display: flex;
   flex-flow: column nowrap;
@@ -681,7 +696,7 @@ body {
   margin-left: 0.5em;
 }
 
-.commentInputActions>.refresh {
+.refresh {
   background-color: #6358FF;
   font-weight: bold;
   text-align: center;
@@ -700,7 +715,7 @@ body {
   width: 1em;
 }
 
-.commentInputActions>.refresh:hover {
+.refresh:hover {
   opacity: 0.8;
 }
 
