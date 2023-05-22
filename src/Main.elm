@@ -99,6 +99,8 @@ quotes =
     , "Who wants to see me cum"
     , "I have a headache every time I think about cooking. Any trad wife candidate looking for a husband? I'll earn a lot of money."
     , "bro literally went on a date with a catboy this is not earth shattering news to me"
+    , "God gave me a girldick and God gave me lust. Not my fault."
+    , "Cool story bro do you know how I can get a pet puppygirl"
     ]
 
 
@@ -843,6 +845,26 @@ update msg model =
             case model.subInfo.commentSubmitting of
                 Just submitting ->
                     ( model, loadCaptcha (submitting |> commentEncoder) )
+
+                Nothing ->
+                    ( model, Cmd.none )
+
+        RegenCommentCaptcha ->
+            case model.subInfo.commentSubmitting of
+                Just submitting ->
+                    let
+                        nonce =
+                            submitting.nonce
+                    in
+                    let
+                        unhashed =
+                            { submitting | nonce = nonce + 1 }
+                    in
+                    let
+                        hashed =
+                            { unhashed | hash = commentId (submissionFromComment unhashed) }
+                    in
+                    update RefreshCommentCaptcha (model |> setSubmissionInfo (model.subInfo |> setCommentSubmitting (Just hashed)))
 
                 Nothing ->
                     ( model, Cmd.none )

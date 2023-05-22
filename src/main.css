@@ -112,6 +112,7 @@ body {
   max-height: 80vh;
   overflow: clip;
   position: relative;
+  width: 100%;
 }
 
 .viewer .postText {
@@ -676,6 +677,33 @@ body {
   margin-left: 0;
 }
 
+.commentInputActions>*:not(:first-child) {
+  margin-left: 0.5em;
+}
+
+.commentInputActions>.refresh {
+  background-color: #6358FF;
+  font-weight: bold;
+  text-align: center;
+  border-radius: 5px;
+  padding-top: 0.5em;
+  padding-bottom: 0.5em;
+
+  color: white;
+
+  cursor: pointer;
+  transition: 0.3s;
+
+  padding-left: 0.5em;
+  padding-right: 0.5em;
+
+  width: 1em;
+}
+
+.commentInputActions>.refresh:hover {
+  opacity: 0.8;
+}
+
 .commentInputActions>*:last-child {
   width: 100%;
 }
@@ -722,8 +750,6 @@ body {
 
   padding-left: 0.5em;
   padding-right: 0.5em;
-
-  margin-left: 1em;
 }
 
 .commentContentInput {

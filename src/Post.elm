@@ -679,6 +679,11 @@ viewCommentArea captcha captchaAnswer feedback submission =
             , div [ class "commentInputActions" ]
                 [ img [ onClick ClearSub, class "cancel", src "/trash.svg" ] []
                 , if captcha /= "" then
+                    img [ onClick RegenCommentCaptcha, class "refresh", src "/refresh.svg" ] []
+
+                  else
+                    text ""
+                , if captcha /= "" then
                     p [ onClick SubmitComment ] [ text "Submit" ]
 
                   else

@@ -44,3 +44,4 @@ type Msg
     | ChangeSubCommentCaptchaAnswer String
     | SetSubContentValid Bool
     | SetMediaExpanded Bool String
+    | RegenCommentCaptcha
