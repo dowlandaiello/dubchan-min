@@ -8,7 +8,7 @@ import 'gun/lib/radisk';
 import 'gun/lib/store';
 import 'gun/lib/rindexed';
 
-const gun = GUN({peers: ['https://dubchan.herokuapp.com/gun'], localStorage: false});
+const gun = GUN({peers: ['https://dubchan.herokuapp.com/gun', 'https://fathomless-chamber-82730.herokuapp.com/gun'], localStorage: false});
 
 const scrollDebounce = 100;
 let debounceTimer = null;
@@ -148,6 +148,7 @@ const loadChunk = (timestamp) => {
     try {
       const json = JSON.parse(str);
       const id = await SEA.work(str, null, null, { name: 'SHA-256' });
+      gun.get('#posts').get(id).put(str);
 
       // This is a post
       if (json.title !== undefined) {
@@ -267,7 +268,7 @@ setTimeout(() => {
         app.ports.scrolledBottom.send(true);
       }
     }, scrollDebounce);
-  }, { passive: true });
+  });
 }, 300);
 
 setTimeout(() => {
