@@ -278,6 +278,45 @@ setTimeout(() => {
 
 genCaptcha();
 
+// Load settings
+const getSettings = () => {
+  let settings = {};
+
+  try {
+    const maybeSettings = window.localStorage.getItem("settings");
+
+    if (maybeSettings) {
+      settings = JSON.parse(maybeSettings);
+    } else {
+      settings = { "identities": [] };
+    }
+  } catch (e) {
+    console.warn(e);
+  }
+
+  return settings;
+};
+
+app.ports.loadedSettings.send(getSettings());
+
+app.ports.generateIdentity.subscribe(async () => {
+  const key = await window.crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+  const pub = JSON.stringify(await window.crypto.subtle.exportKey("jwk", key.publicKey));
+  const priv = JSON.stringify(await window.crypto.subtle.exportKey("jwk", key.privateKey));
+
+  const iden = { "tripcode": "", "pubKey": pub, "privKey": priv };
+
+  const oldSettings = getSettings();
+  const settings = { ...oldSettings, identities: [...oldSettings.identities, iden]};
+  window.localStorage.setItem("settings", JSON.stringify(settings));
+
+  app.ports.loadedSettings.send(settings);
+});
+
+app.ports.modifiedSettings.subscribe(settings => {
+  window.localStorage.setItem("settings", JSON.stringify(settings));
+});
+
 window.gun = gun;
 window.sea = SEA;
 

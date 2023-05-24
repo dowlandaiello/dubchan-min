@@ -12,52 +12,18 @@ import Json.Encode as JE
 import List as L
 import List.Extra as LE
 import Maybe as M
-import Msg exposing (Msg(..))
+import Model exposing (..)
+import Msg exposing (Msg(..), Tab(..))
+import Nav exposing (viewNavigator)
 import Post exposing (Comment, CommentSubmission, MultimediaKind(..), Post, Submission, commentDecoder, commentEncoder, commentFromSubmission, commentId, descending, fromSubmission, getChunkTime, isValidHash, postChunkDecoder, postDecoder, postEncoder, postId, pushComment, setContent, setContentKind, setText, setTitle, subContentValid, submissionFromComment, submissionFromPost, viewCommentArea, viewCommentText, viewExpandableMultimedia, viewMultimedia, viewPost, viewSubmitPost, viewTimestamp)
 import Random
 import Route exposing (..)
 import Set as S
+import Settings exposing (viewSettings)
 import String
 import Time
 import Url
 import Url.Parser exposing (parse, query)
-
-
-type alias Model =
-    { key : Nav.Key
-    , url : Url.Url
-    , subInfo : SubmissionInfo
-    , feedInfo : FeedInfo
-    , time : Time.Posix
-    }
-
-
-type alias SubmissionInfo =
-    { submission : Submission
-    , commentSubmission : CommentSubmission
-    , submitting : Maybe Post
-    , commentSubmitting : Maybe Comment
-    , submissionFeedback : String
-    , head : Maybe Post
-    , captchaHead : Captcha
-    }
-
-
-type alias FeedInfo =
-    { searchQuery : String
-    , visibleMedia : S.Set String
-    , expandedMedia : S.Set String
-    , blurImages : Bool
-    , lastChunk : Int
-    , lastChunkPaginated : Int
-    , qotd : String
-    , feed : D.Dict String Post
-    , feedDisplay : D.Dict Int (List Post)
-    , comments : D.Dict String (D.Dict String Comment)
-    , captchas : D.Dict String Captcha
-    , viewing : Maybe Post
-    , hidden : S.Set String
-    }
 
 
 epochs : Int -> Int
@@ -102,232 +68,6 @@ quotes =
     , "God gave me a girldick and God gave me lust. Not my fault."
     , "Cool story bro do you know how I can get a pet puppygirl"
     ]
-
-
-setSubmissionInfo : SubmissionInfo -> Model -> Model
-setSubmissionInfo s m =
-    { m | subInfo = s }
-
-
-setCaptchaHead : Captcha -> SubmissionInfo -> SubmissionInfo
-setCaptchaHead c m =
-    { m | captchaHead = c }
-
-
-setQotd : String -> FeedInfo -> FeedInfo
-setQotd q m =
-    { m | qotd = q }
-
-
-setFeedInfo : FeedInfo -> Model -> Model
-setFeedInfo s m =
-    { m | feedInfo = s }
-
-
-setVisibleMedia : S.Set String -> FeedInfo -> FeedInfo
-setVisibleMedia s m =
-    { m | visibleMedia = s }
-
-
-setCaptcha : String -> Captcha -> FeedInfo -> FeedInfo
-setCaptcha p c m =
-    let
-        captchas =
-            m.captchas
-    in
-    { m | captchas = D.insert p c captchas }
-
-
-setBlurImages : Bool -> FeedInfo -> FeedInfo
-setBlurImages b m =
-    { m | blurImages = b }
-
-
-setCaptchaAnswer : String -> Post -> Post
-setCaptchaAnswer s p =
-    { p | captchaAnswer = Just s }
-
-
-setCommentCaptchaAnswer : String -> Comment -> Comment
-setCommentCaptchaAnswer s c =
-    { c | captchaAnswer = Just s }
-
-
-setLastChunk : Int -> FeedInfo -> FeedInfo
-setLastChunk c m =
-    { m | lastChunk = c }
-
-
-setLastChunkPaginated : Int -> FeedInfo -> FeedInfo
-setLastChunkPaginated c m =
-    { m | lastChunkPaginated = c }
-
-
-setSubmission : Submission -> SubmissionInfo -> SubmissionInfo
-setSubmission s m =
-    { m | submission = s }
-
-
-setSubmitting : Maybe Post -> SubmissionInfo -> SubmissionInfo
-setSubmitting s m =
-    { m | submitting = s }
-
-
-setCommentSubmitting : Maybe Comment -> SubmissionInfo -> SubmissionInfo
-setCommentSubmitting s m =
-    { m | commentSubmitting = s }
-
-
-setCommentSubmission : CommentSubmission -> SubmissionInfo -> SubmissionInfo
-setCommentSubmission s m =
-    { m | commentSubmission = s }
-
-
-setSubmissionFeedback : String -> SubmissionInfo -> SubmissionInfo
-setSubmissionFeedback s m =
-    { m | submissionFeedback = s }
-
-
-setSearchQuery : String -> FeedInfo -> FeedInfo
-setSearchQuery s m =
-    { m | searchQuery = s }
-
-
-setViewing : Maybe Post -> FeedInfo -> FeedInfo
-setViewing p m =
-    { m | viewing = p }
-
-
-setExpanded : S.Set String -> FeedInfo -> FeedInfo
-setExpanded e m =
-    { m | expandedMedia = e }
-
-
-setHead : Maybe Post -> SubmissionInfo -> SubmissionInfo
-setHead p m =
-    { m | head = p }
-
-
-setHidden : S.Set String -> FeedInfo -> FeedInfo
-setHidden h m =
-    { m | hidden = h }
-
-
-setComments : D.Dict String (D.Dict String Comment) -> FeedInfo -> FeedInfo
-setComments c m =
-    { m | comments = c }
-
-
-addComment : Comment -> Model -> Model
-addComment c m =
-    if c.text == "" then
-        m
-
-    else
-        m
-            |> setFeedInfo
-                (m.feedInfo
-                    |> setComments
-                        (D.update c.parent
-                            (\maybeComments ->
-                                case maybeComments of
-                                    Just comments ->
-                                        Just (D.insert c.id c comments)
-
-                                    Nothing ->
-                                        Just (D.fromList [ ( c.id, c ) ])
-                            )
-                            m.feedInfo.comments
-                        )
-                )
-
-
-addPost : Int -> Post -> Model -> Model
-addPost chunk p m =
-    let
-        display =
-            m.feedInfo.feedDisplay
-    in
-    let
-        feedInfo =
-            m.feedInfo
-    in
-    m
-        |> setFeedInfo
-            { feedInfo
-                | feed = D.insert p.id p m.feedInfo.feed
-                , feedDisplay =
-                    let
-                        newChunks =
-                            case D.get chunk display of
-                                Just chunkItems ->
-                                    p :: chunkItems
-
-                                Nothing ->
-                                    [ p ]
-                    in
-                    D.insert chunk newChunks display
-            }
-        |> setSubmissionInfo
-            (m.subInfo
-                |> setHead
-                    (case m.subInfo.head of
-                        Just head ->
-                            if p.timestamp > head.timestamp then
-                                Just p
-
-                            else
-                                Just head
-
-                        Nothing ->
-                            Just p
-                    )
-            )
-
-
-toggleHidden : String -> Model -> Model
-toggleHidden parent m =
-    let
-        hidden =
-            m.feedInfo.hidden
-    in
-    if S.member parent m.feedInfo.hidden then
-        m
-            |> setFeedInfo (m.feedInfo |> setHidden (S.remove parent m.feedInfo.hidden))
-
-    else
-        m |> setFeedInfo (m.feedInfo |> setHidden (S.insert parent m.feedInfo.hidden))
-
-
-commentsFor : String -> Model -> Maybe (List Comment)
-commentsFor s model =
-    D.get s model.feedInfo.comments |> M.map D.values |> M.map (L.sortWith descending)
-
-
-allCommentsFor : String -> Model -> Maybe (List Comment)
-allCommentsFor s model =
-    let
-        roots =
-            D.get s model.feedInfo.comments
-    in
-    roots |> M.map D.values |> M.map (L.concatMap (\comment -> comment :: M.withDefault [] (allCommentsFor comment.id model)))
-
-
-youngestCommentFor : String -> Model -> Int
-youngestCommentFor s model =
-    allCommentsFor s model |> M.map (L.sortWith descending) |> M.andThen L.head |> M.map (\comment -> comment.timestamp) |> M.withDefault 0
-
-
-sortActivity model a b =
-    case compare (max (youngestCommentFor a.id model) a.timestamp) (max (youngestCommentFor b.id model) b.timestamp) of
-        LT ->
-            GT
-
-        EQ ->
-            EQ
-
-        GT ->
-            LT
 
 
 viewPosts : Model -> Html Msg
@@ -418,7 +158,7 @@ viewComment highlightedComment model comment =
                     )
                     [ viewExpandableMultimedia expanded comment.content comment.id, viewCommentText comment.text ]
                 , if replying then
-                    viewCommentArea (model.subInfo.commentSubmitting |> M.map .hash |> M.andThen (\id -> D.get id model.feedInfo.captchas |> M.map .data) |> M.withDefault "") (model.subInfo.commentSubmitting |> M.andThen .captchaAnswer |> M.withDefault "") model.subInfo.submissionFeedback model.subInfo.commentSubmission
+                    viewCommentArea model.subInfo.subIdentity model.settingsInfo.identities (model.subInfo.commentSubmitting |> M.map .hash |> M.andThen (\id -> D.get id model.feedInfo.captchas |> M.map .data) |> M.withDefault "") (model.subInfo.commentSubmitting |> M.andThen .captchaAnswer |> M.withDefault "") model.subInfo.submissionFeedback model.subInfo.commentSubmission
 
                   else
                     text ""
@@ -493,11 +233,11 @@ init flags url key =
     in
     let
         model =
-            Model key url (SubmissionInfo (Submission "" "" "" 0 Image) (CommentSubmission "" "" "" Image 0) Nothing Nothing "" Nothing (Captcha "" "")) (FeedInfo "" S.empty S.empty True 0 0 "" (D.fromList []) (D.fromList []) (D.fromList []) (D.fromList []) Nothing S.empty) (Time.millisToPosix 0)
+            Model key url (SubmissionInfo (Submission "" "" "" 0 Image Nothing Nothing) (CommentSubmission "" "" "" Image 0 Nothing Nothing) Nothing Nothing "" Nothing (Captcha "" "") Nothing) (FeedInfo "" S.empty S.empty True 0 0 "" (D.fromList []) (D.fromList []) (D.fromList []) (D.fromList []) Nothing S.empty) (NavigationInfo Feed) (SettingsInfo []) (Time.millisToPosix 0)
     in
     case normalized of
         Just post ->
-            ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission { text = "", parent = post, content = "", contentKind = Image, nonce = 0 }), Cmd.batch ([ loadPost post, getComments post ] ++ loadCmd) )
+            ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission { text = "", parent = post, content = "", contentKind = Image, nonce = 0, tripcode = Nothing, pubKey = Nothing }), Cmd.batch ([ loadPost post, getComments post ] ++ loadCmd) )
 
         Nothing ->
             ( model |> setFeedInfo (model.feedInfo |> setViewing Nothing), Cmd.batch loadCmd )
@@ -557,7 +297,7 @@ update msg model =
         SelectPost p ->
             case p of
                 Just post ->
-                    ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission { text = "", parent = post, content = "", contentKind = Image, nonce = 0 }), Cmd.batch [ loadPost post, getComments post ] )
+                    ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission { text = "", parent = post, content = "", contentKind = Image, nonce = 0, tripcode = Nothing, pubKey = Nothing }), Cmd.batch [ loadPost post, getComments post ] )
 
                 Nothing ->
                     ( model |> setFeedInfo (model.feedInfo |> setViewing Nothing), Cmd.none )
@@ -619,7 +359,7 @@ update msg model =
                             case model.feedInfo.captchas |> D.get submitting.hash of
                                 Just expected ->
                                     if isValidCaptcha (submitting.captchaAnswer |> M.withDefault "") expected then
-                                        ( model |> setSubmissionInfo (model.subInfo |> setSubmission (Submission "" "" "" 0 Image) |> setSubmitting Nothing |> setSubmissionFeedback ""), Cmd.batch [ submitting |> postEncoder |> submitPost, genCaptcha () ] )
+                                        ( model |> setSubmissionInfo (model.subInfo |> setSubmission (Submission "" "" "" 0 Image Nothing Nothing) |> setSubmitting Nothing |> setSubmissionFeedback ""), Cmd.batch [ submitting |> postEncoder |> submitPost, genCaptcha () ] )
 
                                     else
                                         ( model |> setSubmissionInfo (model.subInfo |> setSubmissionFeedback "Invalid captcha response."), Cmd.none )
@@ -652,7 +392,7 @@ update msg model =
                             case model.feedInfo.captchas |> D.get submitting.hash of
                                 Just expected ->
                                     if isValidCaptcha (submitting.captchaAnswer |> M.withDefault "") expected then
-                                        ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission (CommentSubmission "" "" "" Image 0) |> setCommentSubmitting Nothing |> setSubmissionFeedback ""), Cmd.batch [ model.subInfo.commentSubmission |> commentFromSubmission (epochsComments (Time.posixToMillis model.time // 1000)) model.time |> commentEncoder |> (\cJson -> JE.list identity [ cJson, vJson ]) |> submitComment, genCaptcha () ] )
+                                        ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission (CommentSubmission "" "" "" Image 0 Nothing Nothing) |> setCommentSubmitting Nothing |> setSubmissionFeedback ""), Cmd.batch [ model.subInfo.commentSubmission |> commentFromSubmission (epochsComments (Time.posixToMillis model.time // 1000)) model.time |> commentEncoder |> (\cJson -> JE.list identity [ cJson, vJson ]) |> submitComment, genCaptcha () ] )
 
                                     else
                                         ( model |> setSubmissionInfo (model.subInfo |> setSubmissionFeedback "Invalid captcha response."), Cmd.none )
@@ -664,7 +404,7 @@ update msg model =
                             ( model, Cmd.none )
 
                 Nothing ->
-                    ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission (CommentSubmission "" "" "" Image 0) |> setSubmissionFeedback ""), Cmd.none )
+                    ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission (CommentSubmission "" "" "" Image 0 Nothing Nothing) |> setSubmissionFeedback ""), Cmd.none )
 
         CommentAdded c ->
             case JD.decodeValue commentDecoder c of
@@ -695,7 +435,7 @@ update msg model =
             ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission { sub | parent = id }), Cmd.none )
 
         ClearSub ->
-            ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission { text = "", parent = "", content = "", contentKind = Image, nonce = 0 } |> setSubmitting Nothing |> setCommentSubmitting Nothing |> setSubmissionFeedback ""), Cmd.none )
+            ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission { text = "", parent = "", content = "", contentKind = Image, nonce = 0, pubKey = Nothing, tripcode = Nothing } |> setSubmitting Nothing |> setCommentSubmitting Nothing |> setSubmissionFeedback ""), Cmd.none )
 
         ToggleHideChain parent ->
             ( model |> toggleHidden parent, Cmd.none )
@@ -935,6 +675,34 @@ update msg model =
             , Cmd.none
             )
 
+        ChangeTabViewing tab ->
+            ( model |> setNavInfo (model.navInfo |> setTabViewing tab), Cmd.none )
+
+        GotSettings json ->
+            case JD.decodeValue settingsDecoder json of
+                Ok settings ->
+                    ( model |> setSettingsInfo settings, Cmd.none )
+
+                Err _ ->
+                    ( model, Cmd.none )
+
+        GenerateIdentity ->
+            ( model, generateIdentity () )
+
+        SaveSettings ->
+            let
+                enc =
+                    settingsEncoder model.settingsInfo
+            in
+            ( model, modifiedSettings enc )
+
+        ChangeSubIdentity maybeIdenPk ->
+            let
+                maybeIden =
+                    maybeIdenPk |> M.andThen (\idenPk -> model.settingsInfo.identities |> L.filter (\iden -> iden.pubKey == idenPk) |> L.head)
+            in
+            ( model |> setSubmissionInfo (model.subInfo |> setSubIdentity maybeIden), Cmd.none )
+
 
 port loadPost : String -> Cmd msg
 
@@ -978,10 +746,23 @@ port loadCaptcha : JE.Value -> Cmd msg
 port loadedCaptcha : (JE.Value -> msg) -> Sub msg
 
 
+port loadedSettings : (JE.Value -> msg) -> Sub msg
+
+
+port generateIdentity : () -> Cmd msg
+
+
+port modifiedSettings : JE.Value -> Cmd msg
+
+
 view : Model -> Browser.Document Msg
 view model =
     { title = "DubChan"
     , body =
+        let
+            navigator =
+                viewNavigator model.navInfo.tabViewing
+        in
         let
             home =
                 [ div
@@ -1003,7 +784,7 @@ view model =
                         [ div [ class "logo" ] [ img [ src "/logo.png" ] [], div [ class "logoText" ] [ div [ class "logoBigLine" ] [ h1 [] [ text "DubChan" ], p [ class "betaMarker" ] [ text "Beta" ] ], p [] [ text "Anonymous. Unmoderated." ] ] ]
                         , viewQuickLinks
                         , viewQotd model
-                        , viewSubmitPost (model.subInfo.submitting |> M.map .hash |> M.andThen (\id -> D.get id model.feedInfo.captchas |> M.map .data) |> M.withDefault "") (model.subInfo.submitting |> M.andThen .captchaAnswer |> M.withDefault "") model.subInfo.submissionFeedback model.subInfo.submission
+                        , viewSubmitPost model.settingsInfo.identities model.subInfo.subIdentity (model.subInfo.submitting |> M.map .hash |> M.andThen (\id -> D.get id model.feedInfo.captchas |> M.map .data) |> M.withDefault "") (model.subInfo.submitting |> M.andThen .captchaAnswer |> M.withDefault "") model.subInfo.submissionFeedback model.subInfo.submission
                         , canvas [ id "captchaGen" ] []
                         , div [ class "feedControls" ]
                             [ viewSearch model.feedInfo.searchQuery
@@ -1023,30 +804,37 @@ view model =
                     ]
                 ]
         in
-        case model.feedInfo.viewing of
-            Just viewing ->
-                div [ class "viewer" ]
-                    [ div [ class "viewerBody" ]
-                        [ div [ class "navigation" ] [ img [ src "/back.svg", onClick (SelectPost Nothing) ] [] ]
-                        , viewPost False 0 (L.member viewing.id verifiedPosts) viewing
-                        , if model.subInfo.commentSubmission.parent /= viewing.id && model.subInfo.commentSubmission.parent /= "" then
-                            text ""
+        navigator
+            :: (case model.navInfo.tabViewing of
+                    Feed ->
+                        case model.feedInfo.viewing of
+                            Just viewing ->
+                                div [ class "viewer" ]
+                                    [ div [ class "viewerBody" ]
+                                        [ div [ class "navigation" ] [ img [ src "/back.svg", onClick (SelectPost Nothing) ] [] ]
+                                        , viewPost False 0 (L.member viewing.id verifiedPosts) viewing
+                                        , if model.subInfo.commentSubmission.parent /= viewing.id && model.subInfo.commentSubmission.parent /= "" then
+                                            text ""
 
-                          else
-                            viewCommentArea (model.subInfo.commentSubmitting |> M.map .hash |> M.andThen (\id -> D.get id model.feedInfo.captchas |> M.map .data) |> M.withDefault "") (model.subInfo.commentSubmitting |> M.andThen .captchaAnswer |> M.withDefault "") model.subInfo.submissionFeedback model.subInfo.commentSubmission
-                        , viewPostComments model
-                        ]
-                    ]
-                    :: home
+                                          else
+                                            viewCommentArea model.subInfo.subIdentity model.settingsInfo.identities (model.subInfo.commentSubmitting |> M.map .hash |> M.andThen (\id -> D.get id model.feedInfo.captchas |> M.map .data) |> M.withDefault "") (model.subInfo.commentSubmitting |> M.andThen .captchaAnswer |> M.withDefault "") model.subInfo.submissionFeedback model.subInfo.commentSubmission
+                                        , viewPostComments model
+                                        ]
+                                    ]
+                                    :: home
 
-            Nothing ->
-                home
+                            Nothing ->
+                                home
+
+                    Settings ->
+                        [ viewSettings model ]
+               )
     }
 
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    Sub.batch [ postLoaded PostLoaded, postIn PostAdded, commentIn CommentAdded, scrolledBottom (always ScrolledBottom), gotCaptcha GotCaptcha, loadedCaptcha LoadedCaptcha, Time.every 1 Tick ]
+    Sub.batch [ postLoaded PostLoaded, postIn PostAdded, commentIn CommentAdded, scrolledBottom (always ScrolledBottom), gotCaptcha GotCaptcha, loadedCaptcha LoadedCaptcha, loadedSettings GotSettings, Time.every 1 Tick ]
 
 
 main : Program () Model Msg

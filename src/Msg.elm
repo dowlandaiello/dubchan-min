@@ -46,3 +46,13 @@ type Msg
     | SetMediaExpanded Bool String
     | RegenCommentCaptcha
     | RegenPostCaptcha
+    | ChangeTabViewing Tab
+    | GotSettings JD.Value
+    | GenerateIdentity
+    | SaveSettings
+    | ChangeSubIdentity (Maybe String)
+
+
+type Tab
+    = Feed
+    | Settings

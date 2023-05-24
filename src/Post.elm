@@ -3,8 +3,9 @@ module Post exposing (..)
 import Captcha exposing (Captcha, captchaDecoder, captchaEncoder)
 import Hash exposing (Hash)
 import Html exposing (Attribute, Html, a, div, h1, iframe, img, input, label, p, text, textarea, video)
-import Html.Attributes exposing (class, controls, for, height, href, id, loop, placeholder, preload, property, src, target, title, value, width)
+import Html.Attributes exposing (checked, class, controls, for, height, href, id, loop, placeholder, preload, property, src, target, title, type_, value, width)
 import Html.Events exposing (on, onClick, onInput)
+import Identity exposing (..)
 import Json.Decode as JD exposing (Decoder, Error, field, float, int, list, map2, map3, map5, map7, map8, maybe, nullable, string)
 import Json.Decode.Extra exposing (andMap)
 import Json.Encode as JE
@@ -28,6 +29,9 @@ type alias Post =
     , id : String
     , hash : String
     , prev : Maybe String
+    , tripcode : Maybe String
+    , pubKey : Maybe String
+    , sig : Maybe String
     }
 
 
@@ -37,6 +41,8 @@ type alias Submission =
     , content : String
     , nonce : Int
     , contentKind : MultimediaKind
+    , tripcode : Maybe String
+    , pubKey : Maybe String
     }
 
 
@@ -46,6 +52,8 @@ type alias CommentSubmission =
     , content : String
     , contentKind : MultimediaKind
     , nonce : Int
+    , tripcode : Maybe String
+    , pubKey : Maybe String
     }
 
 
@@ -104,7 +112,7 @@ submissionFromComment c =
         content =
             M.withDefault (Multimedia "" Image) c.content
     in
-    CommentSubmission c.text c.parent content.src content.kind c.nonce
+    { text = c.text, parent = c.parent, content = content.src, contentKind = content.kind, nonce = c.nonce, tripcode = c.tripcode, pubKey = c.pubKey }
 
 
 submissionFromPost : Post -> Submission
@@ -113,7 +121,7 @@ submissionFromPost p =
         content =
             M.withDefault (Multimedia "" Image) p.content
     in
-    Submission p.title p.text content.src p.nonce content.kind
+    { title = p.title, text = p.text, content = content.src, nonce = p.nonce, contentKind = content.kind, pubKey = p.pubKey, tripcode = p.tripcode }
 
 
 fromSubmission : Captcha -> String -> Int -> Posix -> Submission -> Post
@@ -123,22 +131,26 @@ fromSubmission captcha prev target time sub =
             postId time sub
     in
     if isValidHash target id then
-        Post (posixToMillis time // 1000)
-            sub.title
-            sub.text
-            (if sub.content /= "" then
+        { timestamp = posixToMillis time // 1000
+        , title = sub.title
+        , text = sub.text
+        , content =
+            if sub.content /= "" then
                 Just (Multimedia sub.content sub.contentKind)
 
-             else
+            else
                 Nothing
-            )
-            Nothing
-            sub.nonce
-            (Just captcha)
-            Nothing
-            id
-            id
-            (Just prev)
+        , comments = Nothing
+        , nonce = sub.nonce
+        , captcha = Just captcha
+        , captchaAnswer = Nothing
+        , id = id
+        , hash = id
+        , prev = Just prev
+        , tripcode = sub.tripcode
+        , pubKey = sub.pubKey
+        , sig = Nothing
+        }
 
     else
         let
@@ -155,19 +167,23 @@ commentFromSubmission target time sub =
             commentId sub
     in
     if isValidHash target id then
-        Comment (posixToMillis time // 1000)
-            sub.text
-            sub.parent
-            id
-            (if sub.content /= "" then
+        { timestamp = posixToMillis time // 1000
+        , text = sub.text
+        , parent = sub.parent
+        , id = id
+        , content =
+            if sub.content /= "" then
                 Just (Multimedia sub.content sub.contentKind)
 
-             else
+            else
                 Nothing
-            )
-            0
-            Nothing
-            id
+        , nonce = 0
+        , captchaAnswer = Nothing
+        , hash = id
+        , tripcode = sub.tripcode
+        , pubKey = sub.pubKey
+        , sig = Nothing
+        }
 
     else
         let
@@ -186,6 +202,9 @@ type alias Comment =
     , nonce : Int
     , captchaAnswer : Maybe String
     , hash : String
+    , tripcode : Maybe String
+    , pubKey : Maybe String
+    , sig : Maybe String
     }
 
 
@@ -216,6 +235,9 @@ commentDecoder =
         |> andMap (field "nonce" int)
         |> andMap (maybe (field "captchaAnswer" string))
         |> andMap (field "hash" string)
+        |> andMap (maybe (field "tripcode" string))
+        |> andMap (maybe (field "pubKey" string))
+        |> andMap (maybe (field "sig" string))
 
 
 multimediaDecoder : Decoder Multimedia
@@ -247,22 +269,43 @@ postEncoder p =
         req =
             [ ( "timestamp", JE.int p.timestamp ), ( "title", JE.string p.title ), ( "text", JE.string p.text ), ( "content", p.content |> M.map multimediaEncoder |> M.withDefault JE.null ), ( "comments", JE.null ), ( "nonce", JE.int p.nonce ), ( "hash", JE.string p.hash ), ( "id", JE.string p.id ) ]
     in
-    case p.captcha of
-        Just captcha ->
-            case p.prev of
-                Just prev ->
-                    case p.captchaAnswer of
-                        Just answer ->
-                            JE.object (( "captchaAnswer", JE.string answer ) :: ( "prev", JE.string prev ) :: ( "captcha", captchaEncoder captcha ) :: req)
+    M.map2
+        (\captcha ->
+            \prev ->
+                let
+                    withCaptcha =
+                        ( "prev", JE.string prev ) :: ( "captcha", captchaEncoder captcha ) :: req
+                in
+                case p.captchaAnswer of
+                    Just answer ->
+                        let
+                            withCaptchaAnswer =
+                                ( "captchaAnswer", JE.string answer ) :: withCaptcha
+                        in
+                        M.map2
+                            (\pubKey ->
+                                \sig ->
+                                    let
+                                        withId =
+                                            ( "pubKey", JE.string pubKey ) :: ( "sig", JE.string sig ) :: withCaptchaAnswer
+                                    in
+                                    case p.tripcode of
+                                        Just tripcode ->
+                                            JE.object (( "tripcode", JE.string tripcode ) :: withCaptchaAnswer)
 
-                        Nothing ->
-                            JE.object (( "prev", JE.string prev ) :: ( "captcha", captchaEncoder captcha ) :: req)
+                                        Nothing ->
+                                            JE.object withId
+                            )
+                            p.pubKey
+                            p.sig
+                            |> M.withDefault (JE.object withCaptchaAnswer)
 
-                Nothing ->
-                    JE.object req
-
-        Nothing ->
-            JE.object req
+                    Nothing ->
+                        JE.object withCaptcha
+        )
+        p.captcha
+        p.prev
+        |> M.withDefault (JE.object req)
 
 
 commentEncoder : Comment -> JE.Value
@@ -273,7 +316,27 @@ commentEncoder c =
     in
     case c.captchaAnswer of
         Just answer ->
-            JE.object (( "captchaAnswer", JE.string answer ) :: req)
+            let
+                withCaptchaAnswer =
+                    ( "captchaAnswer", JE.string answer ) :: req
+            in
+            M.map2
+                (\pubKey ->
+                    \sig ->
+                        let
+                            withId =
+                                ( "pubKey", JE.string pubKey ) :: ( "sig", JE.string sig ) :: withCaptchaAnswer
+                        in
+                        case c.tripcode of
+                            Just tripcode ->
+                                JE.object (( "tripcode", JE.string tripcode ) :: withCaptchaAnswer)
+
+                            Nothing ->
+                                JE.object withId
+                )
+                c.pubKey
+                c.sig
+                |> M.withDefault (JE.object withCaptchaAnswer)
 
         Nothing ->
             JE.object req
@@ -281,7 +344,7 @@ commentEncoder c =
 
 postId : Posix -> Submission -> String
 postId t sub =
-    sha256 (sub.title ++ sub.text ++ S.fromInt sub.nonce ++ S.fromInt (posixToMillis t // 1000))
+    sha256 (sub.title ++ sub.text ++ S.fromInt sub.nonce ++ S.fromInt (posixToMillis t // 1000) ++ (sub.tripcode |> M.withDefault ""))
 
 
 commentId : CommentSubmission -> String
@@ -320,6 +383,9 @@ postDecoder =
         |> andMap (field "id" string)
         |> andMap (field "hash" string)
         |> andMap (maybe (field "prev" string))
+        |> andMap (maybe (field "tripcode" string))
+        |> andMap (maybe (field "pubKey" string))
+        |> andMap (maybe (field "sig" string))
 
 
 showMonth : Month -> String
@@ -642,8 +708,8 @@ viewPost blurred nComments verified post =
         ]
 
 
-viewCommentArea : String -> String -> String -> CommentSubmission -> Html Msg
-viewCommentArea captcha captchaAnswer feedback submission =
+viewCommentArea : Maybe Identity -> List Identity -> String -> String -> String -> CommentSubmission -> Html Msg
+viewCommentArea activeIdentity identities captcha captchaAnswer feedback submission =
     div [ class "commentDrawerArea" ]
         [ div [ class "commentInputArea" ]
             [ div [ class "commentInputs" ]
@@ -669,6 +735,7 @@ viewCommentArea captcha captchaAnswer feedback submission =
                         ]
                         [ text "video" ]
                     ]
+                , viewIdSelector identities activeIdentity
                 , if captcha /= "" then
                     div [ class "commentCaptchaSection" ]
                         [ img [ src captcha ] [], input [ placeholder "Captcha answer", onInput ChangeSubCommentCaptchaAnswer, value captchaAnswer ] [] ]
@@ -698,8 +765,39 @@ viewCommentArea captcha captchaAnswer feedback submission =
         ]
 
 
-viewSubmitPost : String -> String -> String -> Submission -> Html Msg
-viewSubmitPost captcha captchaAnswer feedback submission =
+viewIdSelector : List Identity -> Maybe Identity -> Html Msg
+viewIdSelector identities activeIdentity =
+    let
+        idenInputMin =
+            [ div [ class "idenInputRow" ]
+                [ input
+                    [ class "anonCheckbox"
+                    , type_ "checkbox"
+                    , checked (activeIdentity == Nothing)
+                    , onClick
+                        (if activeIdentity /= Nothing then
+                            ChangeSubIdentity Nothing
+
+                         else
+                            ChangeSubIdentity (identities |> L.map .pubKey |> L.head)
+                        )
+                    ]
+                    []
+                , p [ class "anonLabel" ] [ text "Anonymous?" ]
+                ]
+            ]
+    in
+    div [ class "identityInput" ]
+        (if activeIdentity == Nothing then
+            idenInputMin
+
+         else
+            idenInputMin ++ [ div [ class "idenInputRow" ] [ p [ class "identitySelectorLabel" ] [ text "ID:" ], viewIdentitySelector identities ], p [ class "newIdentity", onClick GenerateIdentity ] [ text "New ID" ] ]
+        )
+
+
+viewSubmitPost : List Identity -> Maybe Identity -> String -> String -> String -> Submission -> Html Msg
+viewSubmitPost identities activeIdentity captcha captchaAnswer feedback submission =
     div [ class "submitArea" ]
         [ h1 [] [ text "New Post" ]
         , input [ id "titleInput", placeholder "Post Title", onInput ChangeSubTitle, value submission.title ] []
@@ -732,6 +830,7 @@ viewSubmitPost captcha captchaAnswer feedback submission =
                         ]
                         [ text "image" ]
                     ]
+                , viewIdSelector identities activeIdentity
                 ]
             ]
         , if captcha /= "" then
