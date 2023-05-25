@@ -178,7 +178,7 @@ const loadChunk = (timestamp) => {
       // This is a post
       if (json.title !== undefined) {
         const post = json;
-        const sanitized = { timestamp: post.timestamp, title: post.title, text: post.text, id: id, comments: null, content: null, nComments: 0, nonce: post.nonce ?? 0, hash: post.hash ?? "", uniqueFactor: 0.0, prev: post.prev, captcha: post.captcha, captchaAnswer: post.captchaAnswer };
+        const sanitized = { timestamp: post.timestamp, title: post.title, text: post.text, id: id, comments: null, content: null, nComments: 0, nonce: post.nonce ?? 0, hash: post.hash ?? "", uniqueFactor: 0.0, prev: post.prev, captcha: post.captcha, captchaAnswer: post.captchaAnswer, pubKey: post.pubKey, tripcode: post.tripcode };
 
         if (post.content !== null) {
           const rich = { ...sanitized, content: post.content };

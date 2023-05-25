@@ -7,7 +7,7 @@ import Dict as D
 import Html exposing (Html, canvas, div, h1, img, input, p, text)
 import Html.Attributes exposing (class, id, placeholder, src, value)
 import Html.Events exposing (onClick, onInput)
-import Identity exposing (SignatureRequest, signatureRequestEncoder)
+import Identity exposing (SignatureRequest, identityShortcode, signatureRequestEncoder)
 import Json.Decode as JD
 import Json.Encode as JE
 import List as L
@@ -138,6 +138,12 @@ viewComment highlightedComment model comment =
                 )
                 [ div [ class "commentActions" ]
                     [ p [ class "commentTimestamp" ] [ viewTimestamp comment.timestamp ]
+                    , case comment.pubKey of
+                        Just pubKey ->
+                            p [ class "commentAuthor" ] [ text ((comment.tripcode |> M.map ((++) "@") |> M.withDefault "") ++ "#" ++ identityShortcode pubKey) ]
+
+                        Nothing ->
+                            text ""
                     , img
                         [ src "/reply.svg"
                         , onClick

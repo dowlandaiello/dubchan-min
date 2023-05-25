@@ -32,9 +32,9 @@ identityHash =
     sha256
 
 
-identityShortcode : Identity -> String
+identityShortcode : String -> String
 identityShortcode =
-    .pubKey >> identityHash >> St.left 5
+    identityHash >> St.left 5
 
 
 identityDecoder : JD.Decoder Identity
@@ -49,4 +49,4 @@ identityEncoder iden =
 
 viewIdentitySelector : List Identity -> Html Msg
 viewIdentitySelector =
-    L.map (identityShortcode >> text >> L.singleton >> option []) >> select []
+    L.map (.pubKey >> identityShortcode >> text >> L.singleton >> option []) >> select []

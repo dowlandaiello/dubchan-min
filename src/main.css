@@ -332,6 +332,11 @@ body {
   opacity: 0.8;
 }
 
+.post .postAuthor {
+  margin-bottom: 0.5em;
+  opacity: 0.5;
+}
+
 .verifiedIndicator {
   width: 1.5em;
   margin-right: 0.5em;
@@ -1019,10 +1024,19 @@ body {
   align-items: center;
 }
 
+.commentActions .commentAuthor {
+  margin: 0;
+  padding: 0;
+  opacity: 1;
+}
+
+.commentActions>*:not(:first-child) {
+  margin-left: 0.5em;
+}
+
 .commentActions img {
   filter: invert(1);
   width: 1.5em;
-  margin-left: 0.5em;
   cursor: pointer;
   transition: 0.3s;
 }

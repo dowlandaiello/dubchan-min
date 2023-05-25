@@ -671,6 +671,12 @@ viewPost blurred nComments verified post =
                 ]
             , div [ class "postActions" ] [ img [ src "/link.svg", onClick (CopyString ("https://dubchan.net/?post=" ++ S.dropRight 1 post.id)) ] [] ]
             ]
+        , case post.pubKey of
+            Just pubKey ->
+                p [ class "postAuthor" ] [ text ((post.tripcode |> M.map ((++) "@") |> M.withDefault "") ++ "#" ++ identityShortcode pubKey) ]
+
+            Nothing ->
+                text ""
         , viewPostText post.text
         , viewMultimediaSus blurred post.content post.id
         , div [ class "postAction", onClick (SelectPost (Just post.id)) ] [ img [ src "/forum.svg" ] [], p [] [ text ("Comments " ++ "(" ++ (nComments |> S.fromInt) ++ ")") ] ]
