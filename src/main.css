@@ -587,6 +587,18 @@ body {
   align-items: center;
 }
 
+.identityInput .tripInput {
+  background-color: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.6);
+
+  font-family: "Arial", "Helvetica", "sans-serif";
+  font-size: 1em;
+
+  margin-right: 0.5em;
+}
+
 .feedback {
   opacity: 0.6;
   color: #eb4034;

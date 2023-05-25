@@ -16,6 +16,17 @@ type alias Identity =
     }
 
 
+type alias SignatureRequest =
+    { privKey : String
+    , msg : JE.Value
+    }
+
+
+signatureRequestEncoder : SignatureRequest -> JE.Value
+signatureRequestEncoder req =
+    JE.object [ ( "privKey", JE.string req.privKey ), ( "msg", req.msg ) ]
+
+
 identityHash : String -> String
 identityHash =
     sha256

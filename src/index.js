@@ -240,6 +240,15 @@ app.ports.loadChunk.subscribe(loadChunk);
 app.ports.genCaptcha.subscribe(genCaptcha);
 
 app.ports.submitPost.subscribe(async (post) => {
+  if (post.privKey !== null) {
+    const sig = await sign(post.privKey, JSON.stringify(post.msg));
+    post = { ...post.msg, sig: sig };
+  }
+
+  console.log(post);
+
+  return;
+
   const data = JSON.stringify(post);
   const hash = await SEA.work(data, null, null, { name: 'SHA-256' });
 
@@ -317,6 +326,17 @@ app.ports.generateIdentity.subscribe(async () => {
 app.ports.modifiedSettings.subscribe(settings => {
   window.localStorage.setItem("settings", JSON.stringify(settings));
 });
+
+const base64 = b => btoa(String.fromCharCode.apply(null, new Uint8Array(b)));
+const utfBytes = s => (new TextEncoder()).encode(s);
+
+const sign = async (keyStr, msgStr) => {
+  const msgBytes = utfBytes(msgStr).buffer;
+  const jwk = JSON.parse(keyStr);
+  const key = await window.crypto.subtle.importKey("jwk", jwk, { name: "ECDSA", namedCurve: "P-256" }, true, ["sign"]);
+  const sig = await window.crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, key, msgBytes);
+  return base64(sig);
+};
 
 window.gun = gun;
 window.sea = SEA;

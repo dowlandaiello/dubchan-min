@@ -7,6 +7,7 @@ import Dict as D
 import Html exposing (Html, canvas, div, h1, img, input, p, text)
 import Html.Attributes exposing (class, id, placeholder, src, value)
 import Html.Events exposing (onClick, onInput)
+import Identity exposing (SignatureRequest, signatureRequestEncoder)
 import Json.Decode as JD
 import Json.Encode as JE
 import List as L
@@ -15,7 +16,7 @@ import Maybe as M
 import Model exposing (..)
 import Msg exposing (Msg(..), Tab(..))
 import Nav exposing (viewNavigator)
-import Post exposing (Comment, CommentSubmission, MultimediaKind(..), Post, Submission, commentDecoder, commentEncoder, commentFromSubmission, commentId, descending, fromSubmission, getChunkTime, isValidHash, postChunkDecoder, postDecoder, postEncoder, postId, pushComment, setContent, setContentKind, setText, setTitle, subContentValid, submissionFromComment, submissionFromPost, viewCommentArea, viewCommentText, viewExpandableMultimedia, viewMultimedia, viewPost, viewSubmitPost, viewTimestamp)
+import Post exposing (Comment, CommentSubmission, MultimediaKind(..), Post, Submission, commentDecoder, commentEncoder, commentFromSubmission, commentId, descending, fromSubmission, getChunkTime, isValidHash, postChunkDecoder, postDecoder, postEncoder, postId, pushComment, setCommentSubTripcode, setContent, setContentKind, setText, setTitle, setTripcode, subContentValid, submissionFromComment, submissionFromPost, viewCommentArea, viewCommentText, viewExpandableMultimedia, viewMultimedia, viewPost, viewSubmitPost, viewTimestamp)
 import Random
 import Route exposing (..)
 import Set as S
@@ -358,8 +359,25 @@ update msg model =
                         Just submitting ->
                             case model.feedInfo.captchas |> D.get submitting.hash of
                                 Just expected ->
+                                    let
+                                        pubKey =
+                                            model.subInfo.subIdentity |> M.map .pubKey
+                                    in
+                                    let
+                                        json =
+                                            { submitting | pubKey = pubKey } |> postEncoder
+                                    in
+                                    let
+                                        toSubmit =
+                                            case model.subInfo.subIdentity of
+                                                Just identity ->
+                                                    json |> SignatureRequest identity.privKey |> signatureRequestEncoder
+
+                                                Nothing ->
+                                                    json
+                                    in
                                     if isValidCaptcha (submitting.captchaAnswer |> M.withDefault "") expected then
-                                        ( model |> setSubmissionInfo (model.subInfo |> setSubmission (Submission "" "" "" 0 Image Nothing Nothing) |> setSubmitting Nothing |> setSubmissionFeedback ""), Cmd.batch [ submitting |> postEncoder |> submitPost, genCaptcha () ] )
+                                        ( model |> setSubmissionInfo (model.subInfo |> setSubmission (Submission "" "" "" 0 Image Nothing Nothing) |> setSubmitting Nothing |> setSubmissionFeedback "" |> setSubIdentity Nothing), Cmd.batch [ toSubmit |> submitPost, genCaptcha () ] )
 
                                     else
                                         ( model |> setSubmissionInfo (model.subInfo |> setSubmissionFeedback "Invalid captcha response."), Cmd.none )
@@ -702,6 +720,12 @@ update msg model =
                     maybeIdenPk |> M.andThen (\idenPk -> model.settingsInfo.identities |> L.filter (\iden -> iden.pubKey == idenPk) |> L.head)
             in
             ( model |> setSubmissionInfo (model.subInfo |> setSubIdentity maybeIden), Cmd.none )
+
+        ChangeSubTripcode trip ->
+            ( model |> setSubmissionInfo (model.subInfo |> setSubmission (model.subInfo.submission |> setTripcode trip)), Cmd.none )
+
+        ChangeSubCommentTripcode trip ->
+            ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission (model.subInfo.commentSubmission |> setCommentSubTripcode trip)), Cmd.none )
 
 
 port loadPost : String -> Cmd msg

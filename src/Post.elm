@@ -3,12 +3,13 @@ module Post exposing (..)
 import Captcha exposing (Captcha, captchaDecoder, captchaEncoder)
 import Hash exposing (Hash)
 import Html exposing (Attribute, Html, a, div, h1, iframe, img, input, label, p, text, textarea, video)
-import Html.Attributes exposing (checked, class, controls, for, height, href, id, loop, placeholder, preload, property, src, target, title, type_, value, width)
+import Html.Attributes exposing (checked, class, controls, for, height, href, id, loop, maxlength, placeholder, preload, property, src, target, title, type_, value, width)
 import Html.Events exposing (on, onClick, onInput)
 import Identity exposing (..)
 import Json.Decode as JD exposing (Decoder, Error, field, float, int, list, map2, map3, map5, map7, map8, maybe, nullable, string)
 import Json.Decode.Extra exposing (andMap)
 import Json.Encode as JE
+import Json.Encode.Optional as Opt
 import List as L
 import Maybe as M
 import Msg exposing (Msg(..))
@@ -81,6 +82,16 @@ setContent s submission =
 setContentKind : MultimediaKind -> Submission -> Submission
 setContentKind s submission =
     { submission | contentKind = s }
+
+
+setCommentSubTripcode : Maybe String -> CommentSubmission -> CommentSubmission
+setCommentSubTripcode s submission =
+    { submission | tripcode = s }
+
+
+setTripcode : Maybe String -> Submission -> Submission
+setTripcode s submission =
+    { submission | tripcode = s }
 
 
 subContentValid : { a | content : String } -> Result String ()
@@ -265,81 +276,39 @@ parseMultimediaKind s =
 
 postEncoder : Post -> JE.Value
 postEncoder p =
-    let
-        req =
-            [ ( "timestamp", JE.int p.timestamp ), ( "title", JE.string p.title ), ( "text", JE.string p.text ), ( "content", p.content |> M.map multimediaEncoder |> M.withDefault JE.null ), ( "comments", JE.null ), ( "nonce", JE.int p.nonce ), ( "hash", JE.string p.hash ), ( "id", JE.string p.id ) ]
-    in
-    M.map2
-        (\captcha ->
-            \prev ->
-                let
-                    withCaptcha =
-                        ( "prev", JE.string prev ) :: ( "captcha", captchaEncoder captcha ) :: req
-                in
-                case p.captchaAnswer of
-                    Just answer ->
-                        let
-                            withCaptchaAnswer =
-                                ( "captchaAnswer", JE.string answer ) :: withCaptcha
-                        in
-                        M.map2
-                            (\pubKey ->
-                                \sig ->
-                                    let
-                                        withId =
-                                            ( "pubKey", JE.string pubKey ) :: ( "sig", JE.string sig ) :: withCaptchaAnswer
-                                    in
-                                    case p.tripcode of
-                                        Just tripcode ->
-                                            JE.object (( "tripcode", JE.string tripcode ) :: withCaptchaAnswer)
-
-                                        Nothing ->
-                                            JE.object withId
-                            )
-                            p.pubKey
-                            p.sig
-                            |> M.withDefault (JE.object withCaptchaAnswer)
-
-                    Nothing ->
-                        JE.object withCaptcha
-        )
-        p.captcha
-        p.prev
-        |> M.withDefault (JE.object req)
+    [ ( "timestamp", p.timestamp ) |> Opt.field JE.int
+    , ( "title", p.title ) |> Opt.field JE.string
+    , ( "text", p.text ) |> Opt.field JE.string
+    , ( "content", p.content |> M.map multimediaEncoder |> M.withDefault JE.null ) |> Opt.field identity
+    , ( "comments", JE.null ) |> Opt.field identity
+    , ( "nonce", p.nonce ) |> Opt.field JE.int
+    , ( "hash", p.hash ) |> Opt.field JE.string
+    , ( "id", p.id ) |> Opt.field JE.string
+    , ( "prev", p.prev ) |> Opt.optionalField JE.string
+    , ( "captcha", p.captcha |> M.map captchaEncoder ) |> Opt.optionalField identity
+    , ( "captchaAnswer", p.captchaAnswer ) |> Opt.optionalField JE.string
+    , ( "pubKey", p.pubKey ) |> Opt.optionalField JE.string
+    , ( "sig", p.sig ) |> Opt.optionalField JE.string
+    , ( "tripcode", p.tripcode ) |> Opt.optionalField JE.string
+    ]
+        |> Opt.objectMaySkip
 
 
 commentEncoder : Comment -> JE.Value
 commentEncoder c =
-    let
-        req =
-            [ ( "timestamp", JE.int c.timestamp ), ( "text", JE.string c.text ), ( "parent", JE.string c.parent ), ( "id", JE.string c.id ), ( "content", c.content |> M.map multimediaEncoder |> M.withDefault JE.null ), ( "nonce", JE.int c.nonce ), ( "hash", JE.string c.hash ) ]
-    in
-    case c.captchaAnswer of
-        Just answer ->
-            let
-                withCaptchaAnswer =
-                    ( "captchaAnswer", JE.string answer ) :: req
-            in
-            M.map2
-                (\pubKey ->
-                    \sig ->
-                        let
-                            withId =
-                                ( "pubKey", JE.string pubKey ) :: ( "sig", JE.string sig ) :: withCaptchaAnswer
-                        in
-                        case c.tripcode of
-                            Just tripcode ->
-                                JE.object (( "tripcode", JE.string tripcode ) :: withCaptchaAnswer)
-
-                            Nothing ->
-                                JE.object withId
-                )
-                c.pubKey
-                c.sig
-                |> M.withDefault (JE.object withCaptchaAnswer)
-
-        Nothing ->
-            JE.object req
+    [ ( "timestamp", c.timestamp ) |> Opt.field JE.int
+    , ( "text", c.text ) |> Opt.field JE.string
+    , ( "parent", c.parent ) |> Opt.field JE.string
+    , ( "id", c.id ) |> Opt.field JE.string
+    , ( "content", c.content |> M.map multimediaEncoder |> M.withDefault JE.null ) |> Opt.field identity
+    , ( "nonce", c.nonce ) |> Opt.field JE.int
+    , ( "hash", c.hash ) |> Opt.field JE.string
+    , ( "captchaAnswer", c.captchaAnswer ) |> Opt.optionalField JE.string
+    , ( "pubKey", c.pubKey ) |> Opt.optionalField JE.string
+    , ( "sig", c.sig ) |> Opt.optionalField JE.string
+    , ( "tripcode", c.tripcode ) |> Opt.optionalField JE.string
+    ]
+        |> Opt.objectMaySkip
 
 
 postId : Posix -> Submission -> String
@@ -735,7 +704,15 @@ viewCommentArea activeIdentity identities captcha captchaAnswer feedback submiss
                         ]
                         [ text "video" ]
                     ]
-                , viewIdSelector identities activeIdentity
+                , viewIdSelector identities
+                    activeIdentity
+                    (\s ->
+                        if S.isEmpty s then
+                            ChangeSubCommentTripcode Nothing
+
+                        else
+                            ChangeSubCommentTripcode (Just s)
+                    )
                 , if captcha /= "" then
                     div [ class "commentCaptchaSection" ]
                         [ img [ src captcha ] [], input [ placeholder "Captcha answer", onInput ChangeSubCommentCaptchaAnswer, value captchaAnswer ] [] ]
@@ -765,8 +742,8 @@ viewCommentArea activeIdentity identities captcha captchaAnswer feedback submiss
         ]
 
 
-viewIdSelector : List Identity -> Maybe Identity -> Html Msg
-viewIdSelector identities activeIdentity =
+viewIdSelector : List Identity -> Maybe Identity -> (String -> Msg) -> Html Msg
+viewIdSelector identities activeIdentity onAliasChange =
     let
         idenInputMin =
             [ div [ class "idenInputRow" ]
@@ -792,7 +769,21 @@ viewIdSelector identities activeIdentity =
             idenInputMin
 
          else
-            idenInputMin ++ [ div [ class "idenInputRow" ] [ p [ class "identitySelectorLabel" ] [ text "ID:" ], viewIdentitySelector identities ], p [ class "newIdentity", onClick GenerateIdentity ] [ text "New ID" ] ]
+            idenInputMin
+                ++ [ div [ class "idenInputRow" ]
+                        [ input
+                            [ class "tripInput"
+                            , placeholder "Alias"
+                            , onInput
+                                onAliasChange
+                            , maxlength 20
+                            ]
+                            []
+                        , p [ class "identitySelectorLabel" ] [ text "ID:" ]
+                        , viewIdentitySelector identities
+                        ]
+                   , p [ class "newIdentity", onClick GenerateIdentity ] [ text "New ID" ]
+                   ]
         )
 
 
@@ -830,7 +821,15 @@ viewSubmitPost identities activeIdentity captcha captchaAnswer feedback submissi
                         ]
                         [ text "image" ]
                     ]
-                , viewIdSelector identities activeIdentity
+                , viewIdSelector identities
+                    activeIdentity
+                    (\s ->
+                        if S.isEmpty s then
+                            ChangeSubTripcode Nothing
+
+                        else
+                            ChangeSubTripcode (Just s)
+                    )
                 ]
             ]
         , if captcha /= "" then

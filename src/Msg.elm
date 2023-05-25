@@ -51,6 +51,8 @@ type Msg
     | GenerateIdentity
     | SaveSettings
     | ChangeSubIdentity (Maybe String)
+    | ChangeSubTripcode (Maybe String)
+    | ChangeSubCommentTripcode (Maybe String)
 
 
 type Tab
