@@ -265,7 +265,7 @@ app.ports.loadChunk.subscribe(loadChunk);
 app.ports.genCaptcha.subscribe(genCaptcha);
 
 app.ports.submitPost.subscribe(async (post) => {
-  if (post.privKey !== null) {
+  if (post.privKey) {
     const sig = await sign(post.privKey, JSON.stringify(post.msg));
     post = { ...post.msg, sig: sig };
   }
@@ -279,7 +279,7 @@ app.ports.submitPost.subscribe(async (post) => {
 
 app.ports.submitComment.subscribe(async ([comment, rawParent]) => {
   gun.get('#posts').get(rawParent.id).once(async (parentStr, id) => {
-    if (comment.privKey !== null) {
+    if (comment.privKey) {
       const sig = await sign(comment.privKey, JSON.stringify(comment.msg));
       comment = { ...comment.msg, sig: sig };
     }
