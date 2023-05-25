@@ -480,6 +480,7 @@ body {
   font-size: 1em;
 
   margin-bottom: 1em;
+  max-width: 100%;
 }
 
 .submitActions {
@@ -576,6 +577,11 @@ body {
 
 .identityInput .anonCheckbox {
   margin-right: 0.5em;
+  background-color: #1a1837;
+  border: 1px solid #6358FF;
+  font-size: 1rem;
+  width: 1rem;
+  height: 1rem;
 }
 
 .identityInput .anonLabel {

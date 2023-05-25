@@ -240,11 +240,11 @@ init flags url key =
     in
     let
         model =
-            Model key url (SubmissionInfo (Submission "" "" "" 0 Image Nothing Nothing) (CommentSubmission "" "" "" Image 0 Nothing Nothing) Nothing Nothing "" Nothing (Captcha "" "") Nothing) (FeedInfo "" S.empty S.empty True 0 0 "" (D.fromList []) (D.fromList []) (D.fromList []) (D.fromList []) Nothing S.empty) (NavigationInfo Feed) (SettingsInfo []) (Time.millisToPosix 0)
+            Model key url (SubmissionInfo (Submission "" "" "" 0 Image Nothing Nothing Nothing) (CommentSubmission "" "" "" Image 0 Nothing Nothing Nothing) Nothing Nothing "" Nothing (Captcha "" "") Nothing) (FeedInfo "" S.empty S.empty True 0 0 "" (D.fromList []) (D.fromList []) (D.fromList []) (D.fromList []) Nothing S.empty) (NavigationInfo Feed) (SettingsInfo []) (Time.millisToPosix 0)
     in
     case normalized of
         Just post ->
-            ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission { text = "", parent = post, content = "", contentKind = Image, nonce = 0, tripcode = Nothing, pubKey = Nothing }), Cmd.batch ([ loadPost post, getComments post ] ++ loadCmd) )
+            ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission { text = "", parent = post, content = "", contentKind = Image, nonce = 0, tripcode = Nothing, pubKey = Nothing, encPubKey = Nothing }), Cmd.batch ([ loadPost post, getComments post ] ++ loadCmd) )
 
         Nothing ->
             ( model |> setFeedInfo (model.feedInfo |> setViewing Nothing), Cmd.batch loadCmd )
@@ -304,7 +304,7 @@ update msg model =
         SelectPost p ->
             case p of
                 Just post ->
-                    ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission { text = "", parent = post, content = "", contentKind = Image, nonce = 0, tripcode = Nothing, pubKey = Nothing }), Cmd.batch [ loadPost post, getComments post ] )
+                    ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission { text = "", parent = post, content = "", contentKind = Image, nonce = 0, tripcode = Nothing, pubKey = Nothing, encPubKey = Nothing }), Cmd.batch [ loadPost post, getComments post ] )
 
                 Nothing ->
                     ( model |> setFeedInfo (model.feedInfo |> setViewing Nothing), Cmd.none )
@@ -377,13 +377,13 @@ update msg model =
                                         toSubmit =
                                             case model.subInfo.subIdentity of
                                                 Just identity ->
-                                                    json |> SignatureRequest identity.privKey |> signatureRequestEncoder
+                                                    json |> SignatureRequest identity.privKey identity.encPrivKey |> signatureRequestEncoder
 
                                                 Nothing ->
                                                     json
                                     in
                                     if isValidCaptcha (submitting.captchaAnswer |> M.withDefault "") expected then
-                                        ( model |> setSubmissionInfo (model.subInfo |> setSubmission (Submission "" "" "" 0 Image Nothing Nothing) |> setSubmitting Nothing |> setSubmissionFeedback "" |> setSubIdentity Nothing), Cmd.batch [ toSubmit |> submitPost, genCaptcha () ] )
+                                        ( model |> setSubmissionInfo (model.subInfo |> setSubmission (Submission "" "" "" 0 Image Nothing Nothing Nothing) |> setSubmitting Nothing |> setSubmissionFeedback "" |> setSubIdentity Nothing), Cmd.batch [ toSubmit |> submitPost, genCaptcha () ] )
 
                                     else
                                         ( model |> setSubmissionInfo (model.subInfo |> setSubmissionFeedback "Invalid captcha response."), Cmd.none )
@@ -427,13 +427,13 @@ update msg model =
                                         toSubmit =
                                             case model.subInfo.subIdentity of
                                                 Just identity ->
-                                                    json |> SignatureRequest identity.privKey |> signatureRequestEncoder
+                                                    json |> SignatureRequest identity.privKey identity.encPrivKey |> signatureRequestEncoder
 
                                                 Nothing ->
                                                     json
                                     in
                                     if isValidCaptcha (submitting.captchaAnswer |> M.withDefault "") expected then
-                                        ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission (CommentSubmission "" "" "" Image 0 Nothing Nothing) |> setCommentSubmitting Nothing |> setSubmissionFeedback ""), Cmd.batch [ toSubmit |> (\cJson -> JE.list identity [ cJson, vJson ]) |> submitComment, genCaptcha () ] )
+                                        ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission (CommentSubmission "" "" "" Image 0 Nothing Nothing Nothing) |> setCommentSubmitting Nothing |> setSubmissionFeedback ""), Cmd.batch [ toSubmit |> (\cJson -> JE.list identity [ cJson, vJson ]) |> submitComment, genCaptcha () ] )
 
                                     else
                                         ( model |> setSubmissionInfo (model.subInfo |> setSubmissionFeedback "Invalid captcha response."), Cmd.none )
@@ -445,7 +445,7 @@ update msg model =
                             ( model, Cmd.none )
 
                 Nothing ->
-                    ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission (CommentSubmission "" "" "" Image 0 Nothing Nothing) |> setSubmissionFeedback ""), Cmd.none )
+                    ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission (CommentSubmission "" "" "" Image 0 Nothing Nothing Nothing) |> setSubmissionFeedback ""), Cmd.none )
 
         CommentAdded c ->
             case JD.decodeValue commentDecoder c of
@@ -476,7 +476,7 @@ update msg model =
             ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission { sub | parent = id }), Cmd.none )
 
         ClearSub ->
-            ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission { text = "", parent = "", content = "", contentKind = Image, nonce = 0, pubKey = Nothing, tripcode = Nothing } |> setSubmitting Nothing |> setCommentSubmitting Nothing |> setSubmissionFeedback ""), Cmd.none )
+            ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission { text = "", parent = "", content = "", contentKind = Image, nonce = 0, pubKey = Nothing, tripcode = Nothing, encPubKey = Nothing } |> setSubmitting Nothing |> setCommentSubmitting Nothing |> setSubmissionFeedback ""), Cmd.none )
 
         ToggleHideChain parent ->
             ( model |> toggleHidden parent, Cmd.none )
@@ -872,6 +872,9 @@ view model =
 
                             Nothing ->
                                 home
+
+                    Messages ->
+                        [ text "" ]
 
                     Settings ->
                         [ viewSettings model ]

@@ -33,6 +33,7 @@ type alias Post =
     , tripcode : Maybe String
     , pubKey : Maybe String
     , sig : Maybe String
+    , encPubKey : Maybe String
     }
 
 
@@ -44,6 +45,7 @@ type alias Submission =
     , contentKind : MultimediaKind
     , tripcode : Maybe String
     , pubKey : Maybe String
+    , encPubKey : Maybe String
     }
 
 
@@ -55,6 +57,7 @@ type alias CommentSubmission =
     , nonce : Int
     , tripcode : Maybe String
     , pubKey : Maybe String
+    , encPubKey : Maybe String
     }
 
 
@@ -123,7 +126,7 @@ submissionFromComment c =
         content =
             M.withDefault (Multimedia "" Image) c.content
     in
-    { text = c.text, parent = c.parent, content = content.src, contentKind = content.kind, nonce = c.nonce, tripcode = c.tripcode, pubKey = c.pubKey }
+    { text = c.text, parent = c.parent, content = content.src, contentKind = content.kind, nonce = c.nonce, tripcode = c.tripcode, pubKey = c.pubKey, encPubKey = c.encPubKey }
 
 
 submissionFromPost : Post -> Submission
@@ -132,7 +135,7 @@ submissionFromPost p =
         content =
             M.withDefault (Multimedia "" Image) p.content
     in
-    { title = p.title, text = p.text, content = content.src, nonce = p.nonce, contentKind = content.kind, pubKey = p.pubKey, tripcode = p.tripcode }
+    { title = p.title, text = p.text, content = content.src, nonce = p.nonce, contentKind = content.kind, pubKey = p.pubKey, tripcode = p.tripcode, encPubKey = p.encPubKey }
 
 
 fromSubmission : Captcha -> String -> Int -> Posix -> Submission -> Post
@@ -161,6 +164,7 @@ fromSubmission captcha prev target time sub =
         , tripcode = sub.tripcode
         , pubKey = sub.pubKey
         , sig = Nothing
+        , encPubKey = sub.encPubKey
         }
 
     else
@@ -194,6 +198,7 @@ commentFromSubmission target time sub =
         , tripcode = sub.tripcode
         , pubKey = sub.pubKey
         , sig = Nothing
+        , encPubKey = sub.encPubKey
         }
 
     else
@@ -216,6 +221,7 @@ type alias Comment =
     , tripcode : Maybe String
     , pubKey : Maybe String
     , sig : Maybe String
+    , encPubKey : Maybe String
     }
 
 
@@ -249,6 +255,7 @@ commentDecoder =
         |> andMap (maybe (field "tripcode" string))
         |> andMap (maybe (field "pubKey" string))
         |> andMap (maybe (field "sig" string))
+        |> andMap (maybe (field "encPubKey" string))
 
 
 multimediaDecoder : Decoder Multimedia
@@ -290,6 +297,7 @@ postEncoder p =
     , ( "pubKey", p.pubKey ) |> Opt.optionalField JE.string
     , ( "sig", p.sig ) |> Opt.optionalField JE.string
     , ( "tripcode", p.tripcode ) |> Opt.optionalField JE.string
+    , ( "encPubKey", p.encPubKey ) |> Opt.optionalField JE.string
     ]
         |> Opt.objectMaySkip
 
@@ -307,6 +315,7 @@ commentEncoder c =
     , ( "pubKey", c.pubKey ) |> Opt.optionalField JE.string
     , ( "sig", c.sig ) |> Opt.optionalField JE.string
     , ( "tripcode", c.tripcode ) |> Opt.optionalField JE.string
+    , ( "encPubKey", c.encPubKey ) |> Opt.optionalField JE.string
     ]
         |> Opt.objectMaySkip
 
@@ -355,6 +364,7 @@ postDecoder =
         |> andMap (maybe (field "tripcode" string))
         |> andMap (maybe (field "pubKey" string))
         |> andMap (maybe (field "sig" string))
+        |> andMap (maybe (field "encPubKey" string))
 
 
 showMonth : Month -> String

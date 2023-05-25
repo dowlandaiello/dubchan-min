@@ -17,7 +17,7 @@ type alias NavEntry =
 
 navEntries : List NavEntry
 navEntries =
-    [ { label = "Home", icon = "/home.svg", iconActive = "/home_active.svg", tab = Feed }, { label = "Settings", icon = "/settings.svg", iconActive = "/settings_active.svg", tab = Settings } ]
+    [ { label = "Home", icon = "/home.svg", iconActive = "/home_active.svg", tab = Feed }, { label = "Messages", icon = "/message.svg", iconActive = "/message_active.svg", tab = Messages }, { label = "Settings", icon = "/settings.svg", iconActive = "/settings_active.svg", tab = Settings } ]
 
 
 viewNavEntry : Tab -> NavEntry -> Html Msg

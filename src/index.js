@@ -320,16 +320,20 @@ const generateIdentity = async () => {
   const pub = JSON.stringify(await window.crypto.subtle.exportKey("jwk", key.publicKey));
   const priv = JSON.stringify(await window.crypto.subtle.exportKey("jwk", key.privateKey));
 
-  const iden = { "tripcode": "", "pubKey": pub, "privKey": priv };
+  const encKey = await window.crypto.subtle.generateKey({ name: "RSA-OAEP", modulusLength: 4096, publicExponent: new Uint8Array([0x01, 0x00, 0x01]), hash: "SHA-256" }, true, ["encrypt", "decrypt"]);
+  const encPub = JSON.stringify(await window.crypto.subtle.exportKey("jwk", encKey.publicKey));
+  const encPriv = JSON.stringify(await window.crypto.subtle.exportKey("jwk", encKey.privateKey));
 
-  const oldSettings = getSettings();
+  const iden = { "tripcode": "", "pubKey": pub, "privKey": priv, "encPrivKey": encPriv, "encPubKey": encPub };
+
+  const oldSettings = await getSettings();
   const settings = { ...oldSettings, identities: [...oldSettings.identities, iden]};
   window.localStorage.setItem("settings", JSON.stringify(settings));
 
   app.ports.loadedSettings.send(settings);
 };
 
-const getSettings = () => {
+const getSettings = async () => {
   let settings = {};
 
   try {
@@ -344,14 +348,30 @@ const getSettings = () => {
     console.warn(e);
   }
 
+  settings.identities = await Promise.all(settings.identities.map(async iden => {
+    if (!iden.encPubKey) {
+      const encKey = await window.crypto.subtle.generateKey({ name: "RSA-OAEP", modulusLength: 4096, publicExponent: new Uint8Array([0x01, 0x00, 0x01]), hash: "SHA-256" }, true, ["encrypt", "decrypt"]);
+      const encPub = JSON.stringify(await window.crypto.subtle.exportKey("jwk", encKey.publicKey));
+      const encPriv = JSON.stringify(await window.crypto.subtle.exportKey("jwk", encKey.privateKey));
+
+      return { ...iden, "encPrivKey": encPriv, "encPubKey": encPub };
+    }
+
+    return iden;
+  }));
+
   if (settings.identities.length == 0) {
     generateIdentity();
   }
 
+  window.localStorage.setItem("settings", JSON.stringify(settings));
+
   return settings;
 };
 
-app.ports.loadedSettings.send(getSettings());
+getSettings()
+  .then((settings) => app.ports.loadedSettings.send(settings));
+
 app.ports.generateIdentity.subscribe(generateIdentity);
 
 app.ports.modifiedSettings.subscribe(settings => {

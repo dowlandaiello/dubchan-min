@@ -58,3 +58,4 @@ type Msg
 type Tab
     = Feed
     | Settings
+    | Messages
