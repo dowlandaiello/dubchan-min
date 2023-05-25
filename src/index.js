@@ -33,6 +33,9 @@ app.ports.loadCaptcha.subscribe((p) => {
   });
 });
 
+const base64 = b => btoa(String.fromCharCode.apply(null, new Uint8Array(b)));
+const utfBytes = s => (new TextEncoder()).encode(s);
+
 const captchaFor = (curr, n, chain, callback) => {
   if (n == 0) {
     callback(chain);
@@ -107,6 +110,18 @@ const rootFor = (curr, callback) => {
   });
 };
 
+const validateSignature = async (json) => {
+  if (!json.pubKey) {
+    return true;
+  }
+
+  const withoutSig = { ...json, sig: undefined };
+  const sig = Uint8Array.from(atob(json.sig), c => c.charCodeAt(0));
+  const pubKey = await window.crypto.subtle.importKey("jwk", JSON.parse(json.pubKey), { name: "ECDSA", namedCurve: "P-256" }, true, ["verify"]);
+
+  return await window.crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, pubKey, sig, utfBytes(JSON.stringify(withoutSig)).buffer);
+};
+
 app.ports.loadPost.subscribe((m) => {
   gun.get('#posts').get(m).once((postStr) => {
     if (postStr !== undefined) {
@@ -130,6 +145,11 @@ app.ports.getComments.subscribe(async (post) => {
   const loadComments = (str, id) => {
     try {
       const json = JSON.parse(str);
+
+      if (!validateSignature(json)) {
+        return;
+      }
+
       if (json.parent !== undefined) {
         gun.get('#comments').get(id).put(str);
 
@@ -147,6 +167,11 @@ const loadChunk = (timestamp) => {
   gun.get('#chunk_' + timestamp.toString()).map().once(async (str, id) => {
     try {
       const json = JSON.parse(str);
+
+      if (!validateSignature(json)) {
+        return;
+      }
+
       const id = await SEA.work(str, null, null, { name: 'SHA-256' });
       gun.get('#posts').get(id).put(str);
 
@@ -245,10 +270,6 @@ app.ports.submitPost.subscribe(async (post) => {
     post = { ...post.msg, sig: sig };
   }
 
-  console.log(post);
-
-  return;
-
   const data = JSON.stringify(post);
   const hash = await SEA.work(data, null, null, { name: 'SHA-256' });
 
@@ -258,6 +279,11 @@ app.ports.submitPost.subscribe(async (post) => {
 
 app.ports.submitComment.subscribe(async ([comment, rawParent]) => {
   gun.get('#posts').get(rawParent.id).once(async (parentStr, id) => {
+    if (comment.privKey !== null) {
+      const sig = await sign(comment.privKey, JSON.stringify(comment.msg));
+      comment = { ...comment.msg, sig: sig };
+    }
+
     const data = JSON.stringify(comment);
     const hash = await SEA.work(data, null, null, { name: 'SHA-256' });
 
@@ -289,6 +315,20 @@ setTimeout(() => {
 genCaptcha();
 
 // Load settings
+const generateIdentity = async () => {
+  const key = await window.crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+  const pub = JSON.stringify(await window.crypto.subtle.exportKey("jwk", key.publicKey));
+  const priv = JSON.stringify(await window.crypto.subtle.exportKey("jwk", key.privateKey));
+
+  const iden = { "tripcode": "", "pubKey": pub, "privKey": priv };
+
+  const oldSettings = getSettings();
+  const settings = { ...oldSettings, identities: [...oldSettings.identities, iden]};
+  window.localStorage.setItem("settings", JSON.stringify(settings));
+
+  app.ports.loadedSettings.send(settings);
+};
+
 const getSettings = () => {
   let settings = {};
 
@@ -304,31 +344,19 @@ const getSettings = () => {
     console.warn(e);
   }
 
+  if (settings.identities.length == 0) {
+    generateIdentity();
+  }
+
   return settings;
 };
 
 app.ports.loadedSettings.send(getSettings());
-
-app.ports.generateIdentity.subscribe(async () => {
-  const key = await window.crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
-  const pub = JSON.stringify(await window.crypto.subtle.exportKey("jwk", key.publicKey));
-  const priv = JSON.stringify(await window.crypto.subtle.exportKey("jwk", key.privateKey));
-
-  const iden = { "tripcode": "", "pubKey": pub, "privKey": priv };
-
-  const oldSettings = getSettings();
-  const settings = { ...oldSettings, identities: [...oldSettings.identities, iden]};
-  window.localStorage.setItem("settings", JSON.stringify(settings));
-
-  app.ports.loadedSettings.send(settings);
-});
+app.ports.generateIdentity.subscribe(generateIdentity);
 
 app.ports.modifiedSettings.subscribe(settings => {
   window.localStorage.setItem("settings", JSON.stringify(settings));
 });
-
-const base64 = b => btoa(String.fromCharCode.apply(null, new Uint8Array(b)));
-const utfBytes = s => (new TextEncoder()).encode(s);
 
 const sign = async (keyStr, msgStr) => {
   const msgBytes = utfBytes(msgStr).buffer;

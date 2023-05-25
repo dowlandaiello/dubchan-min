@@ -409,8 +409,25 @@ update msg model =
                         Just submitting ->
                             case model.feedInfo.captchas |> D.get submitting.hash of
                                 Just expected ->
+                                    let
+                                        pubKey =
+                                            model.subInfo.subIdentity |> M.map .pubKey
+                                    in
+                                    let
+                                        json =
+                                            { submitting | pubKey = pubKey } |> commentEncoder
+                                    in
+                                    let
+                                        toSubmit =
+                                            case model.subInfo.subIdentity of
+                                                Just identity ->
+                                                    json |> SignatureRequest identity.privKey |> signatureRequestEncoder
+
+                                                Nothing ->
+                                                    json
+                                    in
                                     if isValidCaptcha (submitting.captchaAnswer |> M.withDefault "") expected then
-                                        ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission (CommentSubmission "" "" "" Image 0 Nothing Nothing) |> setCommentSubmitting Nothing |> setSubmissionFeedback ""), Cmd.batch [ model.subInfo.commentSubmission |> commentFromSubmission (epochsComments (Time.posixToMillis model.time // 1000)) model.time |> commentEncoder |> (\cJson -> JE.list identity [ cJson, vJson ]) |> submitComment, genCaptcha () ] )
+                                        ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission (CommentSubmission "" "" "" Image 0 Nothing Nothing) |> setCommentSubmitting Nothing |> setSubmissionFeedback ""), Cmd.batch [ toSubmit |> (\cJson -> JE.list identity [ cJson, vJson ]) |> submitComment, genCaptcha () ] )
 
                                     else
                                         ( model |> setSubmissionInfo (model.subInfo |> setSubmissionFeedback "Invalid captcha response."), Cmd.none )

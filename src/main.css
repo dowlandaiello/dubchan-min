@@ -1060,7 +1060,8 @@ body {
   opacity: 0.9;
 }
 
-.newIdentity {
+.identityInput .newIdentity {
+  background-color: transparent;
   border: 1px solid #6358FF;
   font-weight: bold;
   text-align: center;
@@ -1076,11 +1077,10 @@ body {
   padding-left: 0.5em;
   padding-right: 0.5em;
 
-  width: 30vw;
-
   margin-bottom: 0;
 
   box-sizing: border-box;
+  width: 100%;
 }
 
 .newIdentity:hover {
