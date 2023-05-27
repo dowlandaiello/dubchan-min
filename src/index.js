@@ -277,6 +277,11 @@ app.ports.submitPost.subscribe(async (post) => {
   gun.get('#posts').get(hash).put(data);
 });
 
+app.ports.submitMessage.subscribe(async (message) => {
+  const sig = await sign(message.privKey, JSON.stringify(message.msg));
+  const msg = { ...message.msg, sig: sig };
+});
+
 app.ports.submitComment.subscribe(async ([comment, rawParent]) => {
   gun.get('#posts').get(rawParent.id).once(async (parentStr, id) => {
     if (comment.privKey) {

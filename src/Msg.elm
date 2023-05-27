@@ -53,9 +53,25 @@ type Msg
     | ChangeSubIdentity (Maybe String)
     | ChangeSubTripcode (Maybe String)
     | ChangeSubCommentTripcode (Maybe String)
+    | OpenConvo Conversation
+    | SetSubMessageImage
+    | SetSubMessageVideo
+    | ChangeSubMessageText String
+    | ChangeSubMessageContent String
+    | SubmitMessage
+    | ChangeSubMessageTripcode (Maybe String)
 
 
 type Tab
     = Feed
     | Settings
     | Messages
+
+
+type alias Conversation =
+    { tripcode : Maybe String
+    , pubKey : String
+
+    -- This is the primary key in convos dict
+    , encPubKey : String
+    }

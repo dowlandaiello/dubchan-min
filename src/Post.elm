@@ -1,6 +1,7 @@
 module Post exposing (..)
 
 import Captcha exposing (Captcha, captchaDecoder, captchaEncoder)
+import Flip exposing (flip)
 import Hash exposing (Hash)
 import Html exposing (Attribute, Html, a, div, h1, iframe, img, input, label, p, text, textarea, video)
 import Html.Attributes exposing (checked, class, controls, for, height, href, id, loop, maxlength, placeholder, preload, property, src, target, title, type_, value, width)
@@ -12,7 +13,7 @@ import Json.Encode as JE
 import Json.Encode.Optional as Opt
 import List as L
 import Maybe as M
-import Msg exposing (Msg(..))
+import Msg exposing (Conversation, Msg(..))
 import Sha256 exposing (sha256)
 import String as S
 import Time exposing (Month(..), Posix, Zone, customZone, millisToPosix, posixToMillis, toDay, toHour, toMinute, toMonth, toYear)
@@ -683,7 +684,7 @@ viewPost blurred nComments verified post =
             ]
         , case post.pubKey of
             Just pubKey ->
-                p [ class "postAuthor" ] [ text ((post.tripcode |> M.map ((++) "@") |> M.withDefault "") ++ "#" ++ identityShortcode pubKey) ]
+                ([ p [ class "postAuthor" ] [ text ((post.tripcode |> M.map ((++) "@") |> M.withDefault "") ++ "#" ++ identityShortcode pubKey) ] ] ++ (post.encPubKey |> M.map (Conversation post.tripcode pubKey >> OpenConvo >> onClick >> L.singleton >> (++) [ src "/message.svg" ] >> flip img [] >> L.singleton) |> M.withDefault [])) |> div [ class "authorLine" ]
 
             Nothing ->
                 text ""
@@ -720,7 +721,8 @@ viewCommentArea activeIdentity identities captcha captchaAnswer feedback submiss
                         ]
                         [ text "video" ]
                     ]
-                , viewIdSelector identities
+                , viewIdSelector True
+                    identities
                     activeIdentity
                     (\s ->
                         if S.isEmpty s then
@@ -758,27 +760,31 @@ viewCommentArea activeIdentity identities captcha captchaAnswer feedback submiss
         ]
 
 
-viewIdSelector : List Identity -> Maybe Identity -> (String -> Msg) -> Html Msg
-viewIdSelector identities activeIdentity onAliasChange =
+viewIdSelector : Bool -> List Identity -> Maybe Identity -> (String -> Msg) -> Html Msg
+viewIdSelector anonAllowed identities activeIdentity onAliasChange =
     let
         idenInputMin =
-            [ div [ class "idenInputRow" ]
-                [ input
-                    [ class "anonCheckbox"
-                    , type_ "checkbox"
-                    , checked (activeIdentity == Nothing)
-                    , onClick
-                        (if activeIdentity /= Nothing then
-                            ChangeSubIdentity Nothing
+            if anonAllowed then
+                [ div [ class "idenInputRow" ]
+                    [ input
+                        [ class "anonCheckbox"
+                        , type_ "checkbox"
+                        , checked (activeIdentity == Nothing)
+                        , onClick
+                            (if activeIdentity /= Nothing then
+                                ChangeSubIdentity Nothing
 
-                         else
-                            ChangeSubIdentity (identities |> L.map .pubKey |> L.head)
-                        )
+                             else
+                                ChangeSubIdentity (identities |> L.map .pubKey |> L.head)
+                            )
+                        ]
+                        []
+                    , p [ class "anonLabel" ] [ text "Anonymous?" ]
                     ]
-                    []
-                , p [ class "anonLabel" ] [ text "Anonymous?" ]
                 ]
-            ]
+
+            else
+                []
     in
     div [ class "identityInput" ]
         (if activeIdentity == Nothing then
@@ -837,7 +843,8 @@ viewSubmitPost identities activeIdentity captcha captchaAnswer feedback submissi
                         ]
                         [ text "image" ]
                     ]
-                , viewIdSelector identities
+                , viewIdSelector True
+                    identities
                     activeIdentity
                     (\s ->
                         if S.isEmpty s then

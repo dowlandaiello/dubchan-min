@@ -21,6 +21,7 @@ body {
   flex-flow: row nowrap;
   justify-content: flex-start;
   align-items: stretch;
+  min-height: 100vh;
 }
 
 #captchaGen {
@@ -1046,6 +1047,10 @@ body {
   transition: 0.3s;
 }
 
+.commentActions .dmButton {
+  filter: none;
+}
+
 .commentActions img:hover {
   opacity: 0.5;
 }
@@ -1055,10 +1060,17 @@ body {
 }
 
 .fullPage {
-  height: 100%;
+  min-height: calc(100% - 6em);
+  max-height: calc(100% - 6em);
   margin: 3em;
   color: white;
   width: calc(100% - 6em);
+
+  display: flex;
+
+  flex-flow: column nowrap;
+  justify-content: flex-start;
+  align-items: flex-start;
 }
 
 .pageTitle {
@@ -1118,6 +1130,163 @@ body {
   margin-left: 0.5em;
 }
 
+.mailWorkspace {
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: flex-start;
+  align-items: flex-start;
+
+  width: 100%;
+  flex-grow: 1;
+
+  margin-top: 0.5em;
+}
+
+.mailboxes {
+  display: flex;
+  flex-flow: column nowrap;
+  justify-content: flex-start;
+  align-items: stretch;
+  width: 30%;
+}
+
+.mailbox {
+  background-color: #110f25;
+  padding: 1em;
+  cursor: pointer;
+
+  transition: 0.3s;
+  border-radius: 5px;
+}
+
+.mailbox.active {
+  background-color: #1a1837;
+}
+
+.mailbox:hover {
+  opacity: 0.8;
+}
+
+.mailbox p {
+  margin: 0;
+}
+
+.mailboxSender {
+  font-weight: bold;
+  opacity: 0.8;
+}
+
+.messagesArea {
+  background-color: #1a1837;
+  min-height: 100%;
+  width: 100%;
+  border-radius: 5px;
+
+  margin-left: 0.5em;
+
+  display: flex;
+  flex-flow: column nowrap;
+  justify-content: flex-end;
+  align-items: stretch;
+  align-self: stretch;
+
+  padding: 2em;
+  box-sizing: border-box;
+}
+
+.chatInput {
+  display: flex;
+  flex-flow: column nowrap;
+  justify-content: flex-start;
+  align-items: stretch;
+}
+
+.chatInput input, .chatInput textarea {
+  background-color: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.6);
+
+  font-family: "Arial", "Helvetica", "sans-serif";
+  font-size: 1em;
+
+  max-width: 100%;
+}
+
+.chatInput textarea {
+  min-width: 0;
+}
+
+.chatInput input {
+  width: 100%;
+}
+
+.chatInput .icon {
+  width: 1.5em;
+  background-color: #6358FF;
+  padding: 0.5em;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.chatInput .icon:hover {
+  opacity: 0.8;
+}
+
+.chatInput .identityInput {
+  width: 100%;
+  flex-flow: row nowrap;
+}
+
+.chatInput .identityInput .newIdentity {
+  margin: 0;
+  margin-left: 0.5em;
+}
+
+.submitLine {
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: flex-start;
+  align-items: flex-end;
+
+  margin-top: 1em;
+  width: 100%;
+}
+
+.submitLine input {
+  flex-grow: 1;
+}
+
+.submitLine .mediaSelector {
+  width: auto;
+}
+
+.submitLine .mediaSelector p {
+  margin: 0;
+  margin-left: 0.5em;
+}
+
+.submitLine .icon {
+  margin-left: 1em;
+}
+
+@media (max-width: 834px) {
+  .chatInput .identityInput {
+    flex-flow: row wrap;
+    align-items: stretch;
+  }
+
+  .chatInput .identityInput .newIdentity {
+    margin: 0;
+    margin-bottom: 1em;
+  }
+
+  .chatInput .identityInput .idenInputRow {
+    flex-grow: 1;
+  }
+}
+
 @media (max-width: 661px) {
   .logo img {
     width: 30%;
@@ -1137,9 +1306,12 @@ body {
     align-items: stretch;
   }
 
+  .fullPage {
+    flex-grow: 1;
+  }
+
   .navBar {
     margin: 0;
-    position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
@@ -1152,6 +1324,11 @@ body {
     padding-bottom: 1em;
   }
 
+  .feedContainer {
+    flex-basis: 0;
+    flex-grow: 1;
+  }
+
   .navItem {
     padding: 1em;
     border-radius: 0px;
@@ -1162,7 +1339,7 @@ body {
   }
 
   .navIcon {
-    width: 2em;
+    width: 1.5em;
   }
 
   .newIdentity {

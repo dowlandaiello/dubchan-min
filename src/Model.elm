@@ -9,12 +9,13 @@ import Html.Events exposing (onClick, onInput)
 import Identity exposing (..)
 import Json.Decode as JD
 import Json.Encode as JE
+import Json.Encode.Optional as Opt
 import List as L
 import List.Extra as LE
 import Maybe as M
-import Msg exposing (Msg(..), Tab(..))
+import Msg exposing (Conversation, Msg(..), Tab(..))
 import Nav exposing (viewNavigator)
-import Post exposing (Comment, CommentSubmission, MultimediaKind(..), Post, Submission, commentDecoder, commentEncoder, commentFromSubmission, commentId, descending, fromSubmission, getChunkTime, isValidHash, postChunkDecoder, postDecoder, postEncoder, postId, pushComment, setContent, setContentKind, setText, setTitle, subContentValid, submissionFromComment, submissionFromPost, viewCommentArea, viewCommentText, viewExpandableMultimedia, viewMultimedia, viewPost, viewSubmitPost, viewTimestamp)
+import Post exposing (Comment, CommentSubmission, Multimedia, MultimediaKind(..), Post, Submission, commentDecoder, commentEncoder, commentFromSubmission, commentId, descending, fromSubmission, getChunkTime, isValidHash, multimediaEncoder, postChunkDecoder, postDecoder, postEncoder, postId, pushComment, setContent, setContentKind, setText, setTitle, subContentValid, submissionFromComment, submissionFromPost, viewCommentArea, viewCommentText, viewExpandableMultimedia, viewMultimedia, viewPost, viewSubmitPost, viewTimestamp)
 import Set as S
 import Sha256 exposing (sha256)
 import String
@@ -30,6 +31,7 @@ type alias Model =
     , feedInfo : FeedInfo
     , navInfo : NavigationInfo
     , settingsInfo : SettingsInfo
+    , mailInfo : MailInfo
     , time : Time.Posix
     }
 
@@ -53,6 +55,7 @@ type alias SubmissionInfo =
     , head : Maybe Post
     , captchaHead : Captcha
     , subIdentity : Maybe Identity
+    , messageSubmission : MessageSubmission
     }
 
 
@@ -71,6 +74,73 @@ type alias FeedInfo =
     , viewing : Maybe Post
     , hidden : S.Set String
     }
+
+
+type alias MailInfo =
+    { conversations : D.Dict String Mailbox
+    , activeConvo : String
+    }
+
+
+type alias Mailbox =
+    { info : Conversation
+    , messages : List Message
+    }
+
+
+type alias Message =
+    { timestamp : Int
+    , text : String
+    , content : Maybe Multimedia
+    , id : String
+    , pubKey : String
+    , tripcode : Maybe String
+    , sig : String
+    , encPubKey : String
+    }
+
+
+type alias MessageSubmission =
+    { timestamp : Int
+    , text : String
+    , content : String
+    , contentKind : MultimediaKind
+    , tripcode : Maybe String
+    , pubKey : String
+    , encPubKey : String
+    }
+
+
+messageFromSubmission : MessageSubmission -> Message
+messageFromSubmission sub =
+    { timestamp = sub.timestamp
+    , text = sub.text
+    , content =
+        if sub.content /= "" then
+            Just (Multimedia sub.content sub.contentKind)
+
+        else
+            Nothing
+    , id = ""
+    , pubKey = sub.pubKey
+    , encPubKey = sub.encPubKey
+    , tripcode = sub.tripcode
+    , sig = ""
+    }
+
+
+messageEncoder : Message -> JE.Value
+messageEncoder m =
+    [ ( "timestamp", m.timestamp ) |> Opt.field JE.int
+    , ( "text", m.text ) |> Opt.field JE.string
+    , ( "content", m.content |> M.map multimediaEncoder |> M.withDefault JE.null ) |> Opt.field identity
+    , ( "id", m.id ) |> Opt.field JE.string
+    , ( "pubKey", m.pubKey ) |> Opt.field JE.string
+    , ( "sig", m.sig ) |> Opt.field JE.string
+    , ( "tripcode", m.tripcode ) |> Opt.optionalField JE.string
+    , ( "encPubKey", m.encPubKey ) |> Opt.field JE.string
+    ]
+        |> Opt.objectMaySkip
 
 
 settingsDecoder : JD.Decoder SettingsInfo
@@ -167,6 +237,31 @@ setCommentSubmission s m =
     { m | commentSubmission = s }
 
 
+setMessageSubmission : MessageSubmission -> SubmissionInfo -> SubmissionInfo
+setMessageSubmission s m =
+    { m | messageSubmission = s }
+
+
+setMessageContentKind : MultimediaKind -> MessageSubmission -> MessageSubmission
+setMessageContentKind c m =
+    { m | contentKind = c }
+
+
+setMessageText : String -> MessageSubmission -> MessageSubmission
+setMessageText t m =
+    { m | text = t }
+
+
+setMessageContent : String -> MessageSubmission -> MessageSubmission
+setMessageContent c m =
+    { m | content = c }
+
+
+setMessageTripcode : Maybe String -> MessageSubmission -> MessageSubmission
+setMessageTripcode c m =
+    { m | tripcode = c }
+
+
 setSubmissionFeedback : String -> SubmissionInfo -> SubmissionInfo
 setSubmissionFeedback s m =
     { m | submissionFeedback = s }
@@ -215,6 +310,24 @@ setNavInfo nav model =
 setTabViewing : Tab -> NavigationInfo -> NavigationInfo
 setTabViewing t nav =
     { nav | tabViewing = t }
+
+
+setMailboxInfo : MailInfo -> Model -> Model
+setMailboxInfo m model =
+    { model | mailInfo = m }
+
+
+setActiveConvo : String -> Conversation -> MailInfo -> MailInfo
+setActiveConvo c convo m =
+    let
+        withConvo =
+            if D.member c m.conversations then
+                m.conversations
+
+            else
+                D.insert c { info = convo, messages = [] } m.conversations
+    in
+    { m | activeConvo = c, conversations = withConvo }
 
 
 addComment : Comment -> Model -> Model

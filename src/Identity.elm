@@ -6,6 +6,7 @@ import Json.Decode.Extra exposing (andMap)
 import Json.Encode as JE
 import Json.Encode.Optional as Opt
 import List as L
+import Maybe as M
 import Msg exposing (Msg)
 import Sha256 exposing (sha256)
 import String as St
@@ -27,6 +28,19 @@ type alias SignatureRequest =
     }
 
 
+type alias EncryptionRequest =
+    { privKey : String
+    , encPrivKey : String
+    , foreignKey : String
+    , msg : JE.Value
+    }
+
+
+encryptionRequestEncoder : EncryptionRequest -> JE.Value
+encryptionRequestEncoder req =
+    [ ( "privKey", req.privKey ) |> Opt.field JE.string, ( "msg", req.msg ) |> Opt.field identity, ( "encPrivKey", req.encPrivKey ) |> Opt.field JE.string, ( "foreignKey", req.foreignKey ) |> Opt.field JE.string ] |> Opt.objectMaySkip
+
+
 signatureRequestEncoder : SignatureRequest -> JE.Value
 signatureRequestEncoder req =
     [ ( "privKey", req.privKey ) |> Opt.field JE.string, ( "msg", req.msg ) |> Opt.field identity, ( "encPrivKey", req.encPrivKey ) |> Opt.optionalField JE.string ] |> Opt.objectMaySkip
@@ -40,6 +54,11 @@ identityHash =
 identityShortcode : String -> String
 identityShortcode =
     identityHash >> St.left 5
+
+
+identityFullname : Maybe String -> String -> String
+identityFullname tripcode pubKey =
+    (tripcode |> M.map ((++) "@") |> M.withDefault "") ++ "#" ++ identityShortcode pubKey
 
 
 identityDecoder : JD.Decoder Identity

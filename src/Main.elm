@@ -4,17 +4,19 @@ import Browser
 import Browser.Navigation as Nav
 import Captcha exposing (Captcha, captchaDecoder, captchaMsgDecoder, hash, isValidCaptcha)
 import Dict as D
+import Flip exposing (flip)
 import Html exposing (Html, canvas, div, h1, img, input, p, text)
 import Html.Attributes exposing (class, id, placeholder, src, value)
 import Html.Events exposing (onClick, onInput)
-import Identity exposing (SignatureRequest, identityShortcode, signatureRequestEncoder)
+import Identity exposing (EncryptionRequest, Identity, SignatureRequest, encryptionRequestEncoder, identityFullname, identityShortcode, signatureRequestEncoder)
 import Json.Decode as JD
 import Json.Encode as JE
 import List as L
 import List.Extra as LE
+import Mail exposing (..)
 import Maybe as M
 import Model exposing (..)
-import Msg exposing (Msg(..), Tab(..))
+import Msg exposing (Conversation, Msg(..), Tab(..))
 import Nav exposing (viewNavigator)
 import Post exposing (Comment, CommentSubmission, MultimediaKind(..), Post, Submission, commentDecoder, commentEncoder, commentFromSubmission, commentId, descending, fromSubmission, getChunkTime, isValidHash, postChunkDecoder, postDecoder, postEncoder, postId, pushComment, setCommentSubTripcode, setContent, setContentKind, setText, setTitle, setTripcode, subContentValid, submissionFromComment, submissionFromPost, viewCommentArea, viewCommentText, viewExpandableMultimedia, viewMultimedia, viewPost, viewSubmitPost, viewTimestamp)
 import Random
@@ -140,7 +142,7 @@ viewComment highlightedComment model comment =
                     [ p [ class "commentTimestamp" ] [ viewTimestamp comment.timestamp ]
                     , case comment.pubKey of
                         Just pubKey ->
-                            p [ class "commentAuthor" ] [ text ((comment.tripcode |> M.map ((++) "@") |> M.withDefault "") ++ "#" ++ identityShortcode pubKey) ]
+                            p [ class "commentAuthor" ] [ text (identityFullname comment.tripcode pubKey) ]
 
                         Nothing ->
                             text ""
@@ -155,6 +157,12 @@ viewComment highlightedComment model comment =
                             )
                         ]
                         []
+                    , case comment.pubKey of
+                        Just pubKey ->
+                            comment.encPubKey |> M.map (Conversation comment.tripcode pubKey >> OpenConvo >> onClick >> L.singleton >> (++) [ class "dmButton", src "/message.svg" ] >> flip img []) |> M.withDefault (text "")
+
+                        Nothing ->
+                            text ""
                     ]
                 , div
                     (if expanded then
@@ -240,7 +248,7 @@ init flags url key =
     in
     let
         model =
-            Model key url (SubmissionInfo (Submission "" "" "" 0 Image Nothing Nothing Nothing) (CommentSubmission "" "" "" Image 0 Nothing Nothing Nothing) Nothing Nothing "" Nothing (Captcha "" "") Nothing) (FeedInfo "" S.empty S.empty True 0 0 "" (D.fromList []) (D.fromList []) (D.fromList []) (D.fromList []) Nothing S.empty) (NavigationInfo Feed) (SettingsInfo []) (Time.millisToPosix 0)
+            Model key url (SubmissionInfo (Submission "" "" "" 0 Image Nothing Nothing Nothing) (CommentSubmission "" "" "" Image 0 Nothing Nothing Nothing) Nothing Nothing "" Nothing (Captcha "" "") Nothing (MessageSubmission 0 "" "" Image Nothing "" "")) (FeedInfo "" S.empty S.empty True 0 0 "" (D.fromList []) (D.fromList []) (D.fromList []) (D.fromList []) Nothing S.empty) (NavigationInfo Feed) (SettingsInfo []) (MailInfo (D.fromList []) "") (Time.millisToPosix 0)
     in
     case normalized of
         Just post ->
@@ -370,8 +378,12 @@ update msg model =
                                             model.subInfo.subIdentity |> M.map .pubKey
                                     in
                                     let
+                                        encPubKey =
+                                            model.subInfo.subIdentity |> M.andThen .encPubKey
+                                    in
+                                    let
                                         json =
-                                            { submitting | pubKey = pubKey } |> postEncoder
+                                            { submitting | pubKey = pubKey, encPubKey = encPubKey } |> postEncoder
                                     in
                                     let
                                         toSubmit =
@@ -420,8 +432,12 @@ update msg model =
                                             model.subInfo.subIdentity |> M.map .pubKey
                                     in
                                     let
+                                        encPubKey =
+                                            model.subInfo.subIdentity |> M.andThen .encPubKey
+                                    in
+                                    let
                                         json =
-                                            { submitting | pubKey = pubKey } |> commentEncoder
+                                            { submitting | pubKey = pubKey, encPubKey = encPubKey } |> commentEncoder
                                     in
                                     let
                                         toSubmit =
@@ -750,6 +766,44 @@ update msg model =
         ChangeSubCommentTripcode trip ->
             ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission (model.subInfo.commentSubmission |> setCommentSubTripcode trip)), Cmd.none )
 
+        OpenConvo convo ->
+            model |> setMailboxInfo (model.mailInfo |> setActiveConvo convo.encPubKey convo) |> setSubmissionInfo (model.subInfo |> setSubIdentity (model.settingsInfo.identities |> L.head)) |> update (ChangeTabViewing Messages)
+
+        SetSubMessageImage ->
+            ( model |> setSubmissionInfo (model.subInfo |> setMessageSubmission (model.subInfo.messageSubmission |> setMessageContentKind Image)), Cmd.none )
+
+        SetSubMessageVideo ->
+            ( model |> setSubmissionInfo (model.subInfo |> setMessageSubmission (model.subInfo.messageSubmission |> setMessageContentKind Video)), Cmd.none )
+
+        ChangeSubMessageText text ->
+            ( model |> setSubmissionInfo (model.subInfo |> setMessageSubmission (model.subInfo.messageSubmission |> setMessageText text)), Cmd.none )
+
+        ChangeSubMessageContent c ->
+            ( model |> setSubmissionInfo (model.subInfo |> setMessageSubmission (model.subInfo.messageSubmission |> setMessageContent c)), Cmd.none )
+
+        SubmitMessage ->
+            case model.subInfo.subIdentity of
+                Just identity ->
+                    let
+                        submitting =
+                            model.subInfo.messageSubmission
+                    in
+                    let
+                        withKeys =
+                            { submitting | encPubKey = identity.encPubKey |> M.withDefault "", pubKey = identity.pubKey }
+                    in
+                    let
+                        json =
+                            messageFromSubmission withKeys |> messageEncoder
+                    in
+                    ( model |> setSubmissionInfo (model.subInfo |> setMessageSubmission (MessageSubmission 0 "" "" Image Nothing "" "")), json |> EncryptionRequest identity.privKey (identity.encPrivKey |> M.withDefault "") model.mailInfo.activeConvo |> encryptionRequestEncoder |> submitMessage )
+
+                Nothing ->
+                    ( model, Cmd.none )
+
+        ChangeSubMessageTripcode code ->
+            ( model |> setSubmissionInfo (model.subInfo |> setMessageSubmission (model.subInfo.messageSubmission |> setMessageTripcode code)), Cmd.none )
+
 
 port loadPost : String -> Cmd msg
 
@@ -800,6 +854,9 @@ port generateIdentity : () -> Cmd msg
 
 
 port modifiedSettings : JE.Value -> Cmd msg
+
+
+port submitMessage : JE.Value -> Cmd msg
 
 
 view : Model -> Browser.Document Msg
@@ -874,7 +931,7 @@ view model =
                                 home
 
                     Messages ->
-                        [ text "" ]
+                        [ viewMail model ]
 
                     Settings ->
                         [ viewSettings model ]
