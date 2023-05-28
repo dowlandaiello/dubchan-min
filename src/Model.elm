@@ -377,21 +377,6 @@ addMessage sender m model =
 
 messageSender : Message -> Model -> String
 messageSender message model =
-    let
-        _ =
-            Debug.log message.text
-                ((if model.settingsInfo.identities |> L.map .encPubKey |> L.filterMap identity |> L.member message.encPubKey then
-                    message.recipient
-
-                  else
-                    message.encPubKey
-                 )
-                    ++ ";; "
-                    ++ identityShortcode message.recipient
-                    ++ ";; "
-                    ++ identityShortcode message.encPubKey
-                )
-    in
     if model.settingsInfo.identities |> L.map .encPubKey |> L.filterMap identity |> L.member message.encPubKey then
         message.recipient
 
