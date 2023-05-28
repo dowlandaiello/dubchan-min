@@ -7,7 +7,8 @@ import Html exposing (Html, canvas, div, h1, img, input, p, text)
 import Html.Attributes exposing (class, id, placeholder, src, value)
 import Html.Events exposing (onClick, onInput)
 import Identity exposing (..)
-import Json.Decode as JD
+import Json.Decode as JD exposing (field, int, maybe, nullable, string)
+import Json.Decode.Extra exposing (andMap)
 import Json.Encode as JE
 import Json.Encode.Optional as Opt
 import List as L
@@ -15,7 +16,7 @@ import List.Extra as LE
 import Maybe as M
 import Msg exposing (Conversation, Msg(..), Tab(..))
 import Nav exposing (viewNavigator)
-import Post exposing (Comment, CommentSubmission, Multimedia, MultimediaKind(..), Post, Submission, commentDecoder, commentEncoder, commentFromSubmission, commentId, descending, fromSubmission, getChunkTime, isValidHash, multimediaEncoder, postChunkDecoder, postDecoder, postEncoder, postId, pushComment, setContent, setContentKind, setText, setTitle, subContentValid, submissionFromComment, submissionFromPost, viewCommentArea, viewCommentText, viewExpandableMultimedia, viewMultimedia, viewPost, viewSubmitPost, viewTimestamp)
+import Post exposing (Comment, CommentSubmission, Multimedia, MultimediaKind(..), Post, Submission, commentDecoder, commentEncoder, commentFromSubmission, commentId, descending, fromSubmission, getChunkTime, isValidHash, multimediaDecoder, multimediaEncoder, postChunkDecoder, postDecoder, postEncoder, postId, pushComment, setContent, setContentKind, setText, setTitle, subContentValid, submissionFromComment, submissionFromPost, viewCommentArea, viewCommentText, viewExpandableMultimedia, viewMultimedia, viewPost, viewSubmitPost, viewTimestamp)
 import Set as S
 import Sha256 exposing (sha256)
 import String
@@ -77,8 +78,8 @@ type alias FeedInfo =
 
 
 type alias MailInfo =
-    { conversations : D.Dict String Mailbox
-    , activeConvo : String
+    { activeConvo : String
+    , conversations : D.Dict String Mailbox
     }
 
 
@@ -97,6 +98,7 @@ type alias Message =
     , tripcode : Maybe String
     , sig : String
     , encPubKey : String
+    , recipient : String
     }
 
 
@@ -108,6 +110,7 @@ type alias MessageSubmission =
     , tripcode : Maybe String
     , pubKey : String
     , encPubKey : String
+    , recipient : String
     }
 
 
@@ -126,6 +129,7 @@ messageFromSubmission sub =
     , encPubKey = sub.encPubKey
     , tripcode = sub.tripcode
     , sig = ""
+    , recipient = sub.recipient
     }
 
 
@@ -139,8 +143,23 @@ messageEncoder m =
     , ( "sig", m.sig ) |> Opt.field JE.string
     , ( "tripcode", m.tripcode ) |> Opt.optionalField JE.string
     , ( "encPubKey", m.encPubKey ) |> Opt.field JE.string
+    , ( "recipient", m.recipient ) |> Opt.field JE.string
     ]
         |> Opt.objectMaySkip
+
+
+messageDecoder : JD.Decoder Message
+messageDecoder =
+    JD.succeed Message
+        |> andMap (field "timestamp" int)
+        |> andMap (field "text" string)
+        |> andMap (field "content" (nullable multimediaDecoder))
+        |> andMap (field "id" string)
+        |> andMap (field "pubKey" string)
+        |> andMap (maybe (field "tripcode" string))
+        |> andMap (field "sig" string)
+        |> andMap (field "encPubKey" string)
+        |> andMap (field "recipient" string)
 
 
 settingsDecoder : JD.Decoder SettingsInfo
@@ -328,6 +347,42 @@ setActiveConvo c convo m =
                 D.insert c { info = convo, messages = [] } m.conversations
     in
     { m | activeConvo = c, conversations = withConvo }
+
+
+convoPubKey : String -> Model -> Maybe String
+convoPubKey c model =
+    D.get c model.mailInfo.conversations |> M.map (.info >> .encPubKey)
+
+
+addMessage : String -> Message -> Model -> Model
+addMessage sender m model =
+    let
+        convoInfo =
+            { tripcode = m.tripcode, pubKey = m.pubKey, encPubKey = m.encPubKey }
+    in
+    let
+        mailbox =
+            D.get (sha256 sender) model.mailInfo.conversations |> M.withDefault { info = convoInfo, messages = [] }
+    in
+    let
+        messages =
+            mailbox.messages
+    in
+    model |> (D.insert sender { mailbox | messages = m :: messages } model.mailInfo.conversations |> MailInfo model.mailInfo.activeConvo |> setMailboxInfo)
+
+
+messageSender : Message -> Model -> String
+messageSender message model =
+    if model.settingsInfo.identities |> L.map .encPubKey |> L.filterMap identity |> L.member message.encPubKey then
+        message.recipient
+
+    else
+        message.encPubKey
+
+
+currRecipKey : Model -> Maybe String
+currRecipKey model =
+    D.get model.mailInfo.activeConvo model.mailInfo.conversations |> M.map (.info >> .encPubKey)
 
 
 addComment : Comment -> Model -> Model

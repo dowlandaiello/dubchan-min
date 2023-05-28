@@ -30,7 +30,7 @@ type alias SignatureRequest =
 
 type alias EncryptionRequest =
     { privKey : String
-    , encPrivKey : String
+    , encPubKey : String
     , foreignKey : String
     , msg : JE.Value
     }
@@ -38,7 +38,7 @@ type alias EncryptionRequest =
 
 encryptionRequestEncoder : EncryptionRequest -> JE.Value
 encryptionRequestEncoder req =
-    [ ( "privKey", req.privKey ) |> Opt.field JE.string, ( "msg", req.msg ) |> Opt.field identity, ( "encPrivKey", req.encPrivKey ) |> Opt.field JE.string, ( "foreignKey", req.foreignKey ) |> Opt.field JE.string ] |> Opt.objectMaySkip
+    [ ( "privKey", req.privKey ) |> Opt.field JE.string, ( "msg", req.msg ) |> Opt.field identity, ( "encPubKey", req.encPubKey ) |> Opt.field JE.string, ( "foreignKey", req.foreignKey ) |> Opt.field JE.string ] |> Opt.objectMaySkip
 
 
 signatureRequestEncoder : SignatureRequest -> JE.Value
@@ -67,8 +67,8 @@ identityDecoder =
         |> andMap (JD.field "tripcode" JD.string)
         |> andMap (JD.field "pubKey" JD.string)
         |> andMap (JD.field "privKey" JD.string)
-        |> andMap (JD.maybe (JD.field "encPrivKey" JD.string))
         |> andMap (JD.maybe (JD.field "encPubKey" JD.string))
+        |> andMap (JD.maybe (JD.field "encPrivKey" JD.string))
 
 
 identityEncoder : Identity -> JE.Value

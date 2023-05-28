@@ -10,6 +10,7 @@ import Maybe as M
 import Model exposing (..)
 import Msg exposing (Conversation, Msg(..))
 import Post exposing (MultimediaKind(..), viewIdSelector, viewTimestamp)
+import Sha256 exposing (sha256)
 import String as S
 
 
@@ -43,7 +44,7 @@ viewMailbox active mailbox =
 
 viewMailboxes : String -> List Mailbox -> Html Msg
 viewMailboxes active =
-    L.map (\mailbox -> viewMailbox (active == mailbox.info.encPubKey) mailbox) >> div [ class "mailboxes" ]
+    L.map (\mailbox -> viewMailbox (active == sha256 mailbox.info.encPubKey) mailbox) >> div [ class "mailboxes" ]
 
 
 viewChatMessage : Message -> Html Msg

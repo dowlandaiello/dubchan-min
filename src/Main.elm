@@ -23,6 +23,7 @@ import Random
 import Route exposing (..)
 import Set as S
 import Settings exposing (viewSettings)
+import Sha256 exposing (sha256)
 import String
 import Time
 import Url
@@ -248,7 +249,7 @@ init flags url key =
     in
     let
         model =
-            Model key url (SubmissionInfo (Submission "" "" "" 0 Image Nothing Nothing Nothing) (CommentSubmission "" "" "" Image 0 Nothing Nothing Nothing) Nothing Nothing "" Nothing (Captcha "" "") Nothing (MessageSubmission 0 "" "" Image Nothing "" "")) (FeedInfo "" S.empty S.empty True 0 0 "" (D.fromList []) (D.fromList []) (D.fromList []) (D.fromList []) Nothing S.empty) (NavigationInfo Feed) (SettingsInfo []) (MailInfo (D.fromList []) "") (Time.millisToPosix 0)
+            Model key url (SubmissionInfo (Submission "" "" "" 0 Image Nothing Nothing Nothing) (CommentSubmission "" "" "" Image 0 Nothing Nothing Nothing) Nothing Nothing "" Nothing (Captcha "" "") Nothing (MessageSubmission 0 "" "" Image Nothing "" "" "")) (FeedInfo "" S.empty S.empty True 0 0 "" (D.fromList []) (D.fromList []) (D.fromList []) (D.fromList []) Nothing S.empty) (NavigationInfo Feed) (SettingsInfo []) (MailInfo "" (D.fromList [])) (Time.millisToPosix 0)
     in
     case normalized of
         Just post ->
@@ -767,7 +768,7 @@ update msg model =
             ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission (model.subInfo.commentSubmission |> setCommentSubTripcode trip)), Cmd.none )
 
         OpenConvo convo ->
-            model |> setMailboxInfo (model.mailInfo |> setActiveConvo convo.encPubKey convo) |> setSubmissionInfo (model.subInfo |> setSubIdentity (model.settingsInfo.identities |> L.head)) |> update (ChangeTabViewing Messages)
+            model |> setMailboxInfo (model.mailInfo |> setActiveConvo (sha256 convo.encPubKey) convo) |> setSubmissionInfo (model.subInfo |> setSubIdentity (model.settingsInfo.identities |> L.head)) |> update (ChangeTabViewing Messages)
 
         SetSubMessageImage ->
             ( model |> setSubmissionInfo (model.subInfo |> setMessageSubmission (model.subInfo.messageSubmission |> setMessageContentKind Image)), Cmd.none )
@@ -790,19 +791,27 @@ update msg model =
                     in
                     let
                         withKeys =
-                            { submitting | encPubKey = identity.encPubKey |> M.withDefault "", pubKey = identity.pubKey }
+                            { submitting | timestamp = Time.posixToMillis model.time // 1000, encPubKey = identity.encPubKey |> M.withDefault "", pubKey = identity.pubKey, recipient = currRecipKey model |> M.withDefault "" }
                     in
                     let
                         json =
                             messageFromSubmission withKeys |> messageEncoder
                     in
-                    ( model |> setSubmissionInfo (model.subInfo |> setMessageSubmission (MessageSubmission 0 "" "" Image Nothing "" "")), json |> EncryptionRequest identity.privKey (identity.encPrivKey |> M.withDefault "") model.mailInfo.activeConvo |> encryptionRequestEncoder |> submitMessage )
+                    ( model |> setSubmissionInfo (model.subInfo |> setMessageSubmission (MessageSubmission 0 "" "" Image Nothing "" "" model.subInfo.messageSubmission.recipient)), json |> EncryptionRequest identity.privKey (identity.encPubKey |> M.withDefault "") (convoPubKey model.mailInfo.activeConvo model |> M.withDefault "") |> encryptionRequestEncoder |> submitMessage )
 
                 Nothing ->
                     ( model, Cmd.none )
 
         ChangeSubMessageTripcode code ->
             ( model |> setSubmissionInfo (model.subInfo |> setMessageSubmission (model.subInfo.messageSubmission |> setMessageTripcode code)), Cmd.none )
+
+        GotDm json ->
+            case JD.decodeValue messageDecoder json of
+                Ok message ->
+                    ( addMessage (messageSender message model) message model, Cmd.none )
+
+                Err e ->
+                    ( model, Cmd.none )
 
 
 port loadPost : String -> Cmd msg
@@ -857,6 +866,9 @@ port modifiedSettings : JE.Value -> Cmd msg
 
 
 port submitMessage : JE.Value -> Cmd msg
+
+
+port messageLoaded : (JE.Value -> msg) -> Sub msg
 
 
 view : Model -> Browser.Document Msg
@@ -941,7 +953,7 @@ view model =
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    Sub.batch [ postLoaded PostLoaded, postIn PostAdded, commentIn CommentAdded, scrolledBottom (always ScrolledBottom), gotCaptcha GotCaptcha, loadedCaptcha LoadedCaptcha, loadedSettings GotSettings, Time.every 1 Tick ]
+    Sub.batch [ postLoaded PostLoaded, postIn PostAdded, commentIn CommentAdded, scrolledBottom (always ScrolledBottom), gotCaptcha GotCaptcha, loadedCaptcha LoadedCaptcha, loadedSettings GotSettings, messageLoaded GotDm, Time.every 1 Tick ]
 
 
 main : Program () Model Msg

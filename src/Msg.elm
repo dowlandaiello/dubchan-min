@@ -60,6 +60,7 @@ type Msg
     | ChangeSubMessageContent String
     | SubmitMessage
     | ChangeSubMessageTripcode (Maybe String)
+    | GotDm JD.Value
 
 
 type Tab

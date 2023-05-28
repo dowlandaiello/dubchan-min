@@ -1271,6 +1271,16 @@ body {
   margin-left: 1em;
 }
 
+@media (min-width: 834px) {
+  .chatInput .identityInput .newIdentity {
+    width: 10em;
+  }
+
+  .chatInput .idenInputRow {
+    flex-grow: 1;
+  }
+}
+
 @media (max-width: 834px) {
   .chatInput .identityInput {
     flex-flow: row wrap;

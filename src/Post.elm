@@ -684,7 +684,11 @@ viewPost blurred nComments verified post =
             ]
         , case post.pubKey of
             Just pubKey ->
-                ([ p [ class "postAuthor" ] [ text ((post.tripcode |> M.map ((++) "@") |> M.withDefault "") ++ "#" ++ identityShortcode pubKey) ] ] ++ (post.encPubKey |> M.map (Conversation post.tripcode pubKey >> OpenConvo >> onClick >> L.singleton >> (++) [ src "/message.svg" ] >> flip img [] >> L.singleton) |> M.withDefault [])) |> div [ class "authorLine" ]
+                if post.timestamp > 1685229313 then
+                    ([ p [ class "postAuthor" ] [ text ((post.tripcode |> M.map ((++) "@") |> M.withDefault "") ++ "#" ++ identityShortcode pubKey) ] ] ++ (post.encPubKey |> M.map (Conversation post.tripcode pubKey >> OpenConvo >> onClick >> L.singleton >> (++) [ src "/message.svg" ] >> flip img [] >> L.singleton) |> M.withDefault [])) |> div [ class "authorLine" ]
+
+                else
+                    text ""
 
             Nothing ->
                 text ""

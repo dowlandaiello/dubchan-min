@@ -10,6 +10,7 @@ import 'gun/lib/rindexed';
 
 const gun = GUN({peers: ['https://dubchan.herokuapp.com/gun', 'https://fathomless-chamber-82730.herokuapp.com/gun'], localStorage: false});
 
+const rsaChunkSize = 446;
 const scrollDebounce = 100;
 let debounceTimer = null;
 
@@ -34,7 +35,15 @@ app.ports.loadCaptcha.subscribe((p) => {
 });
 
 const base64 = b => btoa(String.fromCharCode.apply(null, new Uint8Array(b)));
+const fromBase64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 const utfBytes = s => (new TextEncoder()).encode(s);
+const utfStr = b => (new TextDecoder("utf-8")).decode(b);
+
+function* chunks(arr, n) {
+  for (let i = 0; i < arr.length; i += n) {
+    yield (new Uint8Array(arr.slice(i, i + n))).buffer;
+  }
+}
 
 const captchaFor = (curr, n, chain, callback) => {
   if (n == 0) {
@@ -261,6 +270,43 @@ const genCaptcha = async () => {
   app.ports.gotCaptcha.send(parsed);
 };
 
+// Gets a hash representation of the key
+const shortcode = async (key) => {
+  const buffer = new TextEncoder().encode(key);
+  const hash = await crypto.subtle.digest('SHA-256', buffer);
+
+  const hashArray = Array.from(new Uint8Array(hash));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+  return hashHex;
+};
+
+const subscribeIdentity = async (pubKey, privateKey) => {
+  const jwk = JSON.parse(privateKey);
+  const key = await window.crypto.subtle.importKey("jwk", jwk, { name: "RSA-OAEP", hash: "SHA-256" }, true, ["decrypt"]);
+  const bucket = await shortcode(pubKey);
+
+  gun.get("#messages-" + bucket).map().once(async (msg, id) => {
+    const bytes = fromBase64(msg);
+    const msgChunks = [...chunks(bytes, 512)];
+    const dec = (await Promise.all(msgChunks.map((chunk) => window.crypto.subtle.decrypt({ name: "RSA-OAEP" }, key, chunk)))).map((chunk) => new Uint8Array(chunk));
+
+    // Merge decrypted blocks
+    const merged = new Uint8Array(dec.reduce((sum, chunk) => sum + chunk.length, 0));
+
+    let offset = 0;
+    dec.forEach(item => {
+      merged.set(item, offset);
+      offset += item.length;
+    });
+
+    const json = utfStr(merged);
+    const message = JSON.parse(json);
+
+    app.ports.messageLoaded.send({ ...message, id: id });
+  });
+};
+
 app.ports.loadChunk.subscribe(loadChunk);
 app.ports.genCaptcha.subscribe(genCaptcha);
 
@@ -280,6 +326,15 @@ app.ports.submitPost.subscribe(async (post) => {
 app.ports.submitMessage.subscribe(async (message) => {
   const sig = await sign(message.privKey, JSON.stringify(message.msg));
   const msg = { ...message.msg, sig: sig };
+
+  const encryptedForeign = await encrypt(message.foreignKey, JSON.stringify(msg));
+  const encryptedDomestic = await encrypt(message.encPubKey, JSON.stringify(msg));
+
+  const foreignHash = await SEA.work(encryptedForeign, null, null, { name: 'SHA-256' });
+  const domesticHash = await SEA.work(encryptedDomestic, null, null, { name: 'SHA-256' });
+
+  gun.get("#messages-" + await shortcode(message.foreignKey)).get(foreignHash).put(encryptedForeign);
+  gun.get("#messages-" + await shortcode(message.encPubKey)).get(domesticHash).put(encryptedDomestic);
 });
 
 app.ports.submitComment.subscribe(async ([comment, rawParent]) => {
@@ -365,6 +420,10 @@ const getSettings = async () => {
     return iden;
   }));
 
+  settings.identities.map((identity) => {
+    subscribeIdentity(identity.encPubKey, identity.encPrivKey);
+  });
+
   if (settings.identities.length == 0) {
     generateIdentity();
   }
@@ -389,6 +448,22 @@ const sign = async (keyStr, msgStr) => {
   const key = await window.crypto.subtle.importKey("jwk", jwk, { name: "ECDSA", namedCurve: "P-256" }, true, ["sign"]);
   const sig = await window.crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, key, msgBytes);
   return base64(sig);
+};
+
+const encrypt = async (keyStr, msgStr) => {
+  const msgBytes = Array.from(utfBytes(msgStr));
+  const msgChunks = [...chunks(msgBytes, rsaChunkSize)];
+  const jwk = JSON.parse(keyStr);
+  const key = await window.crypto.subtle.importKey("jwk", jwk, { name: "RSA-OAEP", hash: "SHA-256" }, true, ["encrypt"]);
+  const encrypted = await Promise.all(msgChunks.map((chunk) => window.crypto.subtle.encrypt({ name: "RSA-OAEP" }, key, chunk)));
+
+  const accum = new Uint8Array(512 * encrypted.length);
+
+  for (let i = 0; i < 512 * encrypted.length; i += 512) {
+    accum.set(new Uint8Array(encrypted[i / 512]), i);
+  }
+
+  return base64((new Uint8Array(accum)).buffer);
 };
 
 window.gun = gun;
