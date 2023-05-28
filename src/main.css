@@ -1323,16 +1323,25 @@ body {
 @media (max-width: 518px) {
   .mailWorkspace {
     flex-flow: column nowrap;
-    max-height: calc(100vh - 15em);
+    height: calc(100vh - 60em);
   }
 
   .messagesArea {
     margin-left: 0;
+    height: 90%;
+    min-height: 0;
   }
 
   .mailboxes {
     flex-flow: row nowrap;
     margin-bottom: 0.5em;
+    min-height: 7.5em;
+  }
+
+  .mailboxes {
+    max-width: 100%;
+    width: 100%;
+    overflow: auto;
   }
 }
 

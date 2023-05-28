@@ -358,7 +358,7 @@ addMessage : String -> Message -> Model -> Model
 addMessage sender m model =
     let
         convoInfo =
-            { tripcode = m.tripcode, pubKey = m.pubKey, encPubKey = m.encPubKey }
+            { tripcode = m.tripcode, pubKey = sender, encPubKey = sender }
     in
     let
         mailbox =
@@ -368,16 +368,40 @@ addMessage sender m model =
         messages =
             mailbox.messages
     in
-    model |> (D.insert (sha256 sender) { mailbox | messages = m :: messages } model.mailInfo.conversations |> MailInfo model.mailInfo.activeConvo |> setMailboxInfo)
+    if messages |> L.map messageId |> L.member (messageId m) then
+        model
+
+    else
+        model |> (D.insert (sha256 sender) { mailbox | messages = m :: messages } model.mailInfo.conversations |> MailInfo model.mailInfo.activeConvo |> setMailboxInfo)
 
 
 messageSender : Message -> Model -> String
 messageSender message model =
+    let
+        _ =
+            Debug.log message.text
+                ((if model.settingsInfo.identities |> L.map .encPubKey |> L.filterMap identity |> L.member message.encPubKey then
+                    message.recipient
+
+                  else
+                    message.encPubKey
+                 )
+                    ++ ";; "
+                    ++ identityShortcode message.recipient
+                    ++ ";; "
+                    ++ identityShortcode message.encPubKey
+                )
+    in
     if model.settingsInfo.identities |> L.map .encPubKey |> L.filterMap identity |> L.member message.encPubKey then
         message.recipient
 
     else
         message.encPubKey
+
+
+messageId : Message -> String
+messageId m =
+    sha256 (m.text ++ String.fromInt m.timestamp)
 
 
 currRecipKey : Model -> Maybe String
