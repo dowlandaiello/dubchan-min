@@ -368,7 +368,7 @@ addMessage sender m model =
         messages =
             mailbox.messages
     in
-    model |> (D.insert sender { mailbox | messages = m :: messages } model.mailInfo.conversations |> MailInfo model.mailInfo.activeConvo |> setMailboxInfo)
+    model |> (D.insert (sha256 sender) { mailbox | messages = m :: messages } model.mailInfo.conversations |> MailInfo model.mailInfo.activeConvo |> setMailboxInfo)
 
 
 messageSender : Message -> Model -> String

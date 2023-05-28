@@ -9,7 +9,7 @@ import List as L
 import Maybe as M
 import Model exposing (..)
 import Msg exposing (Conversation, Msg(..))
-import Post exposing (MultimediaKind(..), viewIdSelector, viewTimestamp)
+import Post exposing (MultimediaKind(..), viewIdSelector, viewPostText, viewTimestamp)
 import Sha256 exposing (sha256)
 import String as S
 
@@ -50,7 +50,13 @@ viewMailboxes active =
 viewChatMessage : Message -> Html Msg
 viewChatMessage m =
     div [ class "message" ]
-        [ p [ class "authorLabel" ] [ text (identityFullname m.tripcode m.pubKey) ]
+        [ div [ class "statusLine" ]
+            [ p [ class "authorLabel" ]
+                [ text (identityFullname m.tripcode m.pubKey) ]
+            , viewTimestamp m.timestamp
+            ]
+        , viewPostText
+            m.text
         ]
 
 
@@ -114,7 +120,7 @@ viewChatArea model =
         messages =
             case D.get model.mailInfo.activeConvo model.mailInfo.conversations of
                 Just activeConvo ->
-                    viewChatMessages activeConvo.messages
+                    viewChatMessages (activeConvo.messages |> L.sortBy .timestamp |> L.reverse)
 
                 Nothing ->
                     text ""

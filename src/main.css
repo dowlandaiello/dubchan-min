@@ -1061,7 +1061,7 @@ body {
 
 .fullPage {
   min-height: calc(100% - 6em);
-  max-height: calc(100% - 6em);
+  max-height: calc(100vh - 6em);
   margin: 3em;
   color: white;
   width: calc(100% - 6em);
@@ -1140,6 +1140,7 @@ body {
   flex-grow: 1;
 
   margin-top: 0.5em;
+  height: calc(100% - 3em);
 }
 
 .mailboxes {
@@ -1148,6 +1149,10 @@ body {
   justify-content: flex-start;
   align-items: stretch;
   width: 30%;
+}
+
+.mailboxes>*:not(:first-child) {
+  margin-top: 0.5em;
 }
 
 .mailbox {
@@ -1192,6 +1197,42 @@ body {
 
   padding: 2em;
   box-sizing: border-box;
+}
+
+.messagesList {
+  flex: 1;
+
+  display: flex;
+  flex-flow: column nowrap;
+  justify-content: flex-start;
+  align-items: stretch;
+  max-height: 100%;
+  overflow: auto;
+  flex-direction: column-reverse;
+}
+
+.message {
+  display: flex;
+
+  flex-flow: column nowrap;
+  justify-content: flex-start;
+  align-items: stretch;
+}
+
+.message .statusLine {
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.statusLine>*:last-child {
+  margin-left: 0.5em;
+  opacity: 0.6;
+}
+
+.statusLine>p {
+  margin-bottom: 0;
 }
 
 .chatInput {

@@ -797,7 +797,7 @@ update msg model =
                         json =
                             messageFromSubmission withKeys |> messageEncoder
                     in
-                    ( model |> setSubmissionInfo (model.subInfo |> setMessageSubmission (MessageSubmission 0 "" "" Image Nothing "" "" model.subInfo.messageSubmission.recipient)), json |> EncryptionRequest identity.privKey (identity.encPubKey |> M.withDefault "") (convoPubKey model.mailInfo.activeConvo model |> M.withDefault "") |> encryptionRequestEncoder |> submitMessage )
+                    ( model |> setSubmissionInfo (model.subInfo |> setMessageSubmission (MessageSubmission 0 "" "" Image model.subInfo.messageSubmission.tripcode "" "" model.subInfo.messageSubmission.recipient)), json |> EncryptionRequest identity.privKey (identity.encPubKey |> M.withDefault "") (convoPubKey model.mailInfo.activeConvo model |> M.withDefault "") |> encryptionRequestEncoder |> submitMessage )
 
                 Nothing ->
                     ( model, Cmd.none )
