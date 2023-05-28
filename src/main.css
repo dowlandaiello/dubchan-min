@@ -1181,6 +1181,14 @@ body {
   opacity: 0.8;
 }
 
+.mailboxHeaderLine>*:not(:first-child) {
+  margin-top: 0.5em;
+}
+
+.mailbox .mailboxHeadline {
+  margin-top: 0.5em;
+}
+
 .messagesArea {
   background-color: #1a1837;
   min-height: 100%;
@@ -1312,6 +1320,22 @@ body {
   margin-left: 1em;
 }
 
+@media (max-width: 518px) {
+  .mailWorkspace {
+    flex-flow: column nowrap;
+    max-height: calc(100vh - 15em);
+  }
+
+  .messagesArea {
+    margin-left: 0;
+  }
+
+  .mailboxes {
+    flex-flow: row nowrap;
+    margin-bottom: 0.5em;
+  }
+}
+
 @media (min-width: 834px) {
   .chatInput .identityInput .newIdentity {
     width: 10em;
@@ -1395,6 +1419,10 @@ body {
 
   .newIdentity {
     width: 100%;
+  }
+
+  .mailboxHeaderLine>*:last-child {
+    display: none;
   }
 }
 

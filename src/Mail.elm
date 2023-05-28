@@ -31,7 +31,7 @@ viewMailbox active mailbox =
             senderLine =
                 p [ class "mailboxSender" ] [ text ((mailbox.info.tripcode |> M.map ((++) "@") |> M.withDefault "") ++ "#" ++ identityShortcode mailbox.info.pubKey) ]
          in
-         case mailbox.messages |> L.head of
+         case mailbox.messages |> L.sortBy .timestamp |> L.reverse |> L.head of
             Just headline ->
                 [ div [ class "mailboxHeaderLine" ] [ senderLine, headline.timestamp |> viewTimestamp ]
                 , p [ class "mailboxHeadline" ] [ text headline.text ]

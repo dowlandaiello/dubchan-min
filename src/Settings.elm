@@ -14,8 +14,8 @@ viewAboutSection : Html Msg
 viewAboutSection =
     div [ class "section" ]
         [ h2 [ class "sectionHeader" ] [ text "App Info" ]
-        , p [] [ text "App Version: 0.83.0" ]
-        , p [] [ text "Last Updated: 5/24/23" ]
+        , p [] [ text "App Version: 0.84.0" ]
+        , p [] [ text "Last Updated: 5/27/23" ]
         ]
 
 
