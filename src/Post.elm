@@ -765,7 +765,16 @@ viewCommentArea activeIdentity identities captcha captchaAnswer feedback submiss
 
 
 viewIdSelector : Bool -> List Identity -> Maybe Identity -> (String -> Msg) -> Html Msg
-viewIdSelector anonAllowed identities activeIdentity onAliasChange =
+viewIdSelector anonAllowed allIdentities activeIdentity onAliasChange =
+    let
+        identities =
+            case activeIdentity of
+                Just identity ->
+                    identity :: (allIdentities |> L.filter (\iden -> iden.pubKey /= identity.pubKey))
+
+                Nothing ->
+                    allIdentities
+    in
     let
         idenInputMin =
             if anonAllowed then

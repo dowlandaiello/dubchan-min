@@ -3,6 +3,7 @@ module Model exposing (..)
 import Browser.Navigation as Nav
 import Captcha exposing (Captcha, captchaDecoder, captchaMsgDecoder, hash, isValidCaptcha)
 import Dict as D
+import Flip exposing (flip)
 import Html exposing (Html, canvas, div, h1, img, input, p, text)
 import Html.Attributes exposing (class, id, placeholder, src, value)
 import Html.Events exposing (onClick, onInput)
@@ -382,6 +383,25 @@ messageSender message model =
 
     else
         message.encPubKey
+
+
+messageDomestic : Message -> Model -> String
+messageDomestic message model =
+    if model.settingsInfo.identities |> L.map .encPubKey |> L.filterMap identity |> L.member message.encPubKey then
+        message.encPubKey
+
+    else
+        message.recipient
+
+
+mailboxForeigner : Mailbox -> Model -> Maybe String
+mailboxForeigner mailbox model =
+    mailbox.messages |> L.head |> M.map (flip messageSender model)
+
+
+mailboxDomestic : Mailbox -> Model -> Maybe String
+mailboxDomestic mailbox model =
+    mailbox.messages |> L.head |> M.map (flip messageDomestic model)
 
 
 messageId : Message -> String

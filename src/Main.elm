@@ -768,7 +768,11 @@ update msg model =
             ( model |> setSubmissionInfo (model.subInfo |> setCommentSubmission (model.subInfo.commentSubmission |> setCommentSubTripcode trip)), Cmd.none )
 
         OpenConvo convo ->
-            model |> setMailboxInfo (model.mailInfo |> setActiveConvo (sha256 convo.encPubKey) convo) |> setSubmissionInfo (model.subInfo |> setSubIdentity (model.settingsInfo.identities |> L.head)) |> update (ChangeTabViewing Messages)
+            let
+                withConvo =
+                    model |> setMailboxInfo (model.mailInfo |> setActiveConvo (sha256 convo.encPubKey) convo)
+            in
+            withConvo |> setSubmissionInfo (model.subInfo |> setSubIdentity (D.get withConvo.mailInfo.activeConvo withConvo.mailInfo.conversations |> M.andThen (flip mailboxDomestic withConvo >> (\x -> .encPubKey >> (==) x) >> flip L.filter withConvo.settingsInfo.identities >> L.head))) |> update (ChangeTabViewing Messages)
 
         SetSubMessageImage ->
             ( model |> setSubmissionInfo (model.subInfo |> setMessageSubmission (model.subInfo.messageSubmission |> setMessageContentKind Image)), Cmd.none )
