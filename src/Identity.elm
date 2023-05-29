@@ -1,13 +1,15 @@
 module Identity exposing (..)
 
 import Html exposing (Html, option, select, text)
+import Html.Attributes exposing (value)
+import Html.Events exposing (onInput)
 import Json.Decode as JD
 import Json.Decode.Extra exposing (andMap)
 import Json.Encode as JE
 import Json.Encode.Optional as Opt
 import List as L
 import Maybe as M
-import Msg exposing (Msg)
+import Msg exposing (Msg(..))
 import Sha256 exposing (sha256)
 import String as St
 
@@ -78,4 +80,4 @@ identityEncoder iden =
 
 viewIdentitySelector : List Identity -> Html Msg
 viewIdentitySelector =
-    L.map (.pubKey >> identityShortcode >> text >> L.singleton >> option []) >> select []
+    L.map (.pubKey >> (\pubKey -> option [ value pubKey ] [ pubKey |> identityShortcode |> text ])) >> select [ onInput (Just >> ChangeSubIdentity) ]
