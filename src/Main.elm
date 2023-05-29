@@ -15,6 +15,7 @@ import List as L
 import List.Extra as LE
 import Mail exposing (..)
 import Maybe as M
+import Maybe.Extra as ME
 import Model exposing (..)
 import Msg exposing (Conversation, Msg(..), Tab(..))
 import Nav exposing (viewNavigator)
@@ -772,7 +773,7 @@ update msg model =
                 withConvo =
                     model |> setMailboxInfo (model.mailInfo |> setActiveConvo (sha256 convo.encPubKey) convo)
             in
-            withConvo |> setSubmissionInfo (model.subInfo |> setSubIdentity (D.get withConvo.mailInfo.activeConvo withConvo.mailInfo.conversations |> M.andThen (flip mailboxDomestic withConvo >> (\x -> .encPubKey >> (==) x) >> flip L.filter withConvo.settingsInfo.identities >> L.head))) |> update (ChangeTabViewing Messages)
+            withConvo |> setSubmissionInfo (model.subInfo |> setSubIdentity (D.get withConvo.mailInfo.activeConvo withConvo.mailInfo.conversations |> M.andThen (flip mailboxDomestic withConvo >> (\x -> .encPubKey >> (==) x) >> flip L.filter withConvo.settingsInfo.identities >> L.head >> ME.or (withConvo.settingsInfo.identities |> L.head)))) |> update (ChangeTabViewing Messages)
 
         SetSubMessageImage ->
             ( model |> setSubmissionInfo (model.subInfo |> setMessageSubmission (model.subInfo.messageSubmission |> setMessageContentKind Image)), Cmd.none )
