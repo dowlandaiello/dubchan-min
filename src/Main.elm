@@ -818,6 +818,14 @@ update msg model =
                 Err e ->
                     ( model, Cmd.none )
 
+        GoToPost p ->
+            case p of
+                Just post ->
+                    ( model, Nav.pushUrl model.key ("?post=" ++ String.dropRight 1 post) )
+
+                Nothing ->
+                    ( model, Nav.pushUrl model.key "/" )
+
 
 port loadPost : String -> Cmd msg
 
@@ -932,7 +940,7 @@ view model =
                             Just viewing ->
                                 div [ class "viewer" ]
                                     [ div [ class "viewerBody" ]
-                                        [ div [ class "navigation" ] [ img [ src "/back.svg", onClick (SelectPost Nothing) ] [] ]
+                                        [ div [ class "navigation" ] [ img [ src "/back.svg", onClick (GoToPost Nothing) ] [] ]
                                         , viewPost False 0 (L.member viewing.id verifiedPosts) viewing
                                         , if model.subInfo.commentSubmission.parent /= viewing.id && model.subInfo.commentSubmission.parent /= "" then
                                             text ""

@@ -694,7 +694,7 @@ viewPost blurred nComments verified post =
                 text ""
         , viewPostText post.text
         , viewMultimediaSus blurred post.content post.id
-        , div [ class "postAction", onClick (SelectPost (Just post.id)) ] [ img [ src "/forum.svg" ] [], p [] [ text ("Comments " ++ "(" ++ (nComments |> S.fromInt) ++ ")") ] ]
+        , div [ class "postAction", onClick (GoToPost (Just post.id)) ] [ img [ src "/forum.svg" ] [], p [] [ text ("Comments " ++ "(" ++ (nComments |> S.fromInt) ++ ")") ] ]
         ]
 
 

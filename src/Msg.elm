@@ -8,6 +8,7 @@ import Url
 
 type Msg
     = SelectPost (Maybe String)
+    | GoToPost (Maybe String)
     | ClickLink Browser.UrlRequest
     | ChangeUrl Url.Url
     | PostLoaded JD.Value
