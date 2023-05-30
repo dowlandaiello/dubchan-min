@@ -438,6 +438,13 @@ getSettings()
 
 app.ports.generateIdentity.subscribe(generateIdentity);
 
+app.ports.removeIdentity.subscribe(async (identity) => {
+  const settings = await getSettings();
+  settings.identities = settings.identities.filter((iden) => iden.pubKey != identity);
+  window.localStorage.setItem("settings", JSON.stringify(settings));
+  app.ports.loadedSettings.send(settings);
+});
+
 app.ports.modifiedSettings.subscribe(settings => {
   window.localStorage.setItem("settings", JSON.stringify(settings));
 });

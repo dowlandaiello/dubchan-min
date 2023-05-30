@@ -1148,6 +1148,25 @@ body {
   margin-left: 0.5em;
 }
 
+.identityLabel {
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: flex-start;
+  align-items: center;
+
+  margin-right: 0.5em;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.identityLabel:hover {
+  opacity: 0.8;
+}
+
+.identityLabel img {
+  width: 1em;
+}
+
 .mailWorkspace {
   display: flex;
   flex-flow: row nowrap;

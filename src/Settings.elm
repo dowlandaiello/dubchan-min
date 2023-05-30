@@ -1,7 +1,7 @@
 module Settings exposing (..)
 
-import Html exposing (Html, div, h1, h2, p, text)
-import Html.Attributes exposing (class)
+import Html exposing (Html, div, h1, h2, img, p, text)
+import Html.Attributes exposing (class, src)
 import Html.Events exposing (onClick)
 import Identity exposing (Identity, identityHash)
 import List as L
@@ -14,8 +14,8 @@ viewAboutSection : Html Msg
 viewAboutSection =
     div [ class "section" ]
         [ h2 [ class "sectionHeader" ] [ text "App Info" ]
-        , p [] [ text "App Version: 0.1.90" ]
-        , p [] [ text "Last Updated: 5/29/23" ]
+        , p [] [ text "App Version: 0.1.92" ]
+        , p [] [ text "Last Updated: 5/30/23" ]
         ]
 
 
@@ -25,7 +25,7 @@ viewIdentity iden =
         shorthand =
             iden.pubKey |> identityHash |> St.left 5
     in
-    div [ class "identityLabel" ] [ p [] [ text (iden.tripcode ++ "#" ++ shorthand) ] ]
+    div [ class "identityLabel" ] [ img [ src "/close.svg" ] [], p [ onClick (RemoveIdentity iden.pubKey) ] [ text (iden.tripcode ++ "#" ++ shorthand) ] ]
 
 
 viewIdentities : Model -> Html Msg

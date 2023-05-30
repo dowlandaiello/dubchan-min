@@ -826,6 +826,9 @@ update msg model =
                 Nothing ->
                     ( model, Nav.pushUrl model.key "/" )
 
+        RemoveIdentity iden ->
+            ( model, removeIdentity iden )
+
 
 port loadPost : String -> Cmd msg
 
@@ -882,6 +885,9 @@ port submitMessage : JE.Value -> Cmd msg
 
 
 port messageLoaded : (JE.Value -> msg) -> Sub msg
+
+
+port removeIdentity : String -> Cmd msg
 
 
 view : Model -> Browser.Document Msg

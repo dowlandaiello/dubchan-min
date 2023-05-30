@@ -62,6 +62,7 @@ type Msg
     | SubmitMessage
     | ChangeSubMessageTripcode (Maybe String)
     | GotDm JD.Value
+    | RemoveIdentity String
 
 
 type Tab
