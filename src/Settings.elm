@@ -25,7 +25,7 @@ viewIdentity iden =
         shorthand =
             iden.pubKey |> identityHash |> St.left 5
     in
-    div [ class "identityLabel" ] [ img [ src "/close.svg" ] [], p [ onClick (RemoveIdentity iden.pubKey) ] [ text (iden.tripcode ++ "#" ++ shorthand) ] ]
+    div [ class "identityLabel", onClick (RemoveIdentity iden.pubKey) ] [ img [ src "/close.svg" ] [], p [] [ text (iden.tripcode ++ "#" ++ shorthand) ] ]
 
 
 viewIdentities : Model -> Html Msg
