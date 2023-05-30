@@ -815,7 +815,14 @@ viewIdSelector anonAllowed allIdentities activeIdentity onAliasChange =
                             ]
                             []
                         , p [ class "identitySelectorLabel" ] [ text "ID:" ]
-                        , viewIdentitySelector identities
+                        , viewIdentitySelector
+                            (case activeIdentity of
+                                Just iden ->
+                                    iden :: (identities |> L.filter (\id -> id.pubKey /= iden.pubKey))
+
+                                Nothing ->
+                                    identities
+                            )
                         ]
                    , p [ class "newIdentity", onClick GenerateIdentity ] [ text "New ID" ]
                    ]

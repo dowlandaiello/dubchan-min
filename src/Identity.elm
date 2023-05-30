@@ -79,5 +79,5 @@ identityEncoder iden =
 
 
 viewIdentitySelector : List Identity -> Html Msg
-viewIdentitySelector =
-    L.map (.pubKey >> (\pubKey -> option [ value pubKey ] [ pubKey |> identityShortcode |> text ])) >> select [ onInput (Just >> ChangeSubIdentity) ]
+viewIdentitySelector identities =
+    identities |> L.map (.pubKey >> (\pubKey -> option [ value pubKey ] [ pubKey |> identityShortcode |> text ])) >> select [ onInput (Just >> ChangeSubIdentity), value (identities |> L.head |> M.map .pubKey |> M.withDefault "") ]
