@@ -1271,6 +1271,50 @@ body {
   align-items: center;
 }
 
+.message .messageContent {
+  display: flex;
+  flex-flow: row nowrap;
+  justiy-content: flex-start;
+  align-items: flex-start;
+}
+
+.message .messageContent .messageMultimedia {
+  width: 30%;
+  margin-right: 0.5em;
+}
+
+.message .messageMultimedia .content {
+  border-radius: 5px;
+}
+
+.message .messageContent.expanded {
+  flex-flow: column nowrap;
+  justify-content: flex-start;
+  align-items: flex-start;
+}
+
+.message .messageContent.expanded .postText {
+  margin-top: 0.5em;
+}
+
+.message .messageContent.expanded .messageMultimedia {
+  align-self: center;
+  width: 60%;
+  margin-right: 0;
+}
+
+.message .messageContent .postText {
+  margin: 0;
+}
+
+.message .postText p {
+  margin: 0;
+}
+
+.message .messageContent {
+  margin-top: 0.5em;
+}
+
 .statusLine>*:last-child {
   margin-left: 0.5em;
   opacity: 0.6;

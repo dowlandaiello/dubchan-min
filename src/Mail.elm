@@ -9,9 +9,16 @@ import List as L
 import Maybe as M
 import Model exposing (..)
 import Msg exposing (Conversation, Msg(..))
-import Post exposing (MultimediaKind(..), viewIdSelector, viewPostText, viewTimestamp)
+import Post exposing (MultimediaKind(..), viewIdSelector, viewMultimedia, viewPostText, viewTimestamp)
+import Set as S
 import Sha256 exposing (sha256)
-import String as S
+import String as St
+
+
+type alias ViewableMessage =
+    { message : Message
+    , expanded : Bool
+    }
 
 
 viewMailbox : Bool -> Mailbox -> Html Msg
@@ -47,20 +54,40 @@ viewMailboxes active =
     L.map (\mailbox -> viewMailbox (active == sha256 mailbox.info.encPubKey) mailbox) >> div [ class "mailboxes" ]
 
 
-viewChatMessage : Message -> Html Msg
+viewChatMessage : ViewableMessage -> Html Msg
 viewChatMessage m =
     div [ class "message" ]
         [ div [ class "statusLine" ]
             [ p [ class "authorLabel" ]
-                [ text (identityFullname m.tripcode m.pubKey) ]
-            , viewTimestamp m.timestamp
+                [ text (identityFullname m.message.tripcode m.message.pubKey) ]
+            , viewTimestamp m.message.timestamp
             ]
-        , viewPostText
-            m.text
+        , div
+            ([ Just (class "messageContent")
+             , Just (onClick (SetMediaExpanded (not m.expanded) m.message.id))
+             , if m.expanded then
+                Just (class "expanded")
+
+               else
+                Nothing
+             ]
+                |> L.filterMap identity
+            )
+            [ if m.message.content /= Nothing then
+                div
+                    [ class "messageMultimedia"
+                    ]
+                    [ viewMultimedia Nothing Nothing m.message.content ]
+
+              else
+                text ""
+            , viewPostText
+                m.message.text
+            ]
         ]
 
 
-viewChatMessages : List Message -> Html Msg
+viewChatMessages : List ViewableMessage -> Html Msg
 viewChatMessages =
     L.map viewChatMessage >> div [ class "messagesList" ]
 
@@ -75,7 +102,7 @@ viewChatInput identities activeIdentity bodyText attachment activeMediaType =
                     activeIdentity
                 )
                 (\s ->
-                    if S.isEmpty s then
+                    if St.isEmpty s then
                         ChangeSubMessageTripcode Nothing
 
                     else
@@ -120,7 +147,19 @@ viewChatArea model =
         messages =
             case D.get model.mailInfo.activeConvo model.mailInfo.conversations of
                 Just activeConvo ->
-                    viewChatMessages (activeConvo.messages |> L.sortBy .timestamp |> L.reverse)
+                    viewChatMessages
+                        (activeConvo.messages
+                            |> L.sortBy .timestamp
+                            |> L.reverse
+                            |> L.map
+                                (\message ->
+                                    let
+                                        expanded =
+                                            S.member message.id model.feedInfo.expandedMedia
+                                    in
+                                    { message = message, expanded = expanded }
+                                )
+                        )
 
                 Nothing ->
                     text ""
