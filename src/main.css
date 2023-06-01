@@ -1548,4 +1548,12 @@ body {
     padding-left: 20%;
     padding-right: 20%;
   }
+
+  .content.blurred {
+    -webkit-filter: blur(40px);
+    -moz-filter: blur(40px);
+    -o-filter: blur(40px);
+    -ms-filter: blur(40px);
+    filter: blur(40px);
+  }
 }
