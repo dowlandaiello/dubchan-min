@@ -77,6 +77,7 @@ type alias FeedInfo =
     , captchas : D.Dict String Captcha
     , viewing : Maybe Post
     , hidden : S.Set String
+    , tagsViewing : S.Set String
     }
 
 

@@ -26,6 +26,7 @@ import Set as S
 import Settings exposing (viewSettings)
 import Sha256 exposing (sha256)
 import String
+import Tag exposing (tags)
 import Theme exposing (defaultTheme)
 import Time
 import Url
@@ -88,6 +89,7 @@ viewPosts model =
             |> L.filter (\post -> not (L.member post.id susPosts) && not (String.startsWith "fuck you" post.title) && not (String.startsWith "This is why you need a CAPTCHA." post.title))
             |> L.filter (\post -> model.feedInfo.captchas |> D.get post.hash |> M.map (isValidCaptcha (post.captchaAnswer |> M.withDefault "")) |> M.withDefault True)
             |> L.filter (\post -> isValidHash (epochs post.timestamp) post.hash)
+            |> L.filter (\post -> S.diff (S.fromList (post.tags |> M.withDefault [])) model.feedInfo.tagsViewing |> S.size |> (==) 0)
             |> L.filter
                 (\post ->
                     let
@@ -251,7 +253,7 @@ init flags url key =
     in
     let
         model =
-            Model key url (SubmissionInfo (Submission "" "" "" 0 Image Nothing Nothing Nothing []) (CommentSubmission "" "" "" Image 0 Nothing Nothing Nothing) Nothing Nothing "" Nothing (Captcha "" "") Nothing (MessageSubmission 0 "" "" Image Nothing "" "" "")) (FeedInfo "" S.empty S.empty True 0 0 "" (D.fromList []) (D.fromList []) (D.fromList []) (D.fromList []) Nothing S.empty) (NavigationInfo Feed) (SettingsInfo [] defaultTheme) (MailInfo "" (D.fromList [])) (Time.millisToPosix 0)
+            Model key url (SubmissionInfo (Submission "" "" "" 0 Image Nothing Nothing Nothing []) (CommentSubmission "" "" "" Image 0 Nothing Nothing Nothing) Nothing Nothing "" Nothing (Captcha "" "") Nothing (MessageSubmission 0 "" "" Image Nothing "" "" "")) (FeedInfo "" S.empty S.empty True 0 0 "" (D.fromList []) (D.fromList []) (D.fromList []) (D.fromList []) Nothing S.empty (S.fromList tags)) (NavigationInfo Feed) (SettingsInfo [] defaultTheme) (MailInfo "" (D.fromList [])) (Time.millisToPosix 0)
     in
     case normalized of
         Just post ->
