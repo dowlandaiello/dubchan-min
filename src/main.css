@@ -339,6 +339,24 @@ body, .app {
   opacity: 0.8;
 }
 
+.postActions .tags {
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.postActions .tags>* {
+  margin-left: 0.5em;
+}
+
+.postActions .tags>* {
+  padding: 0.5em;
+  border: 1px solid var(--accent);
+  border-radius: 10000px;
+  font-weight: bold;
+}
+
 .postTitleLine {
   display: flex;
 
@@ -513,6 +531,13 @@ body, .app {
 
   flex-flow: column nowrap;
   border: 1px solid var(--accent);
+}
+
+.areaHeader {
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .submitArea input, .submitArea textarea {
@@ -1469,6 +1494,35 @@ body, .app {
   margin-left: 1em;
 }
 
+.tagList {
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.tagList>*:not(:first-child) {
+  margin-left: 0.5em;
+}
+
+.tagList .tag {
+  padding: 1em;
+  border: 1px solid var(--accent);
+  border-radius: 10000px;
+  transition: 0.3s;
+  cursor: pointer;
+}
+
+.tagList .tag:hover {
+  opacity: 0.8;
+}
+
+.tagList .tag.active {
+  background-color: var(--accent);
+  border: 0px;
+  font-weight: bold;
+}
+
 @media (max-width: 518px) {
   .mailWorkspace {
     flex-flow: column nowrap;
@@ -1544,7 +1598,7 @@ body, .app {
     width: 100%;
   }
 
-  body {
+  body, .app {
     flex-flow: column-reverse nowrap;
     justify-content: flex-start;
     align-items: stretch;

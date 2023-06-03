@@ -251,7 +251,7 @@ init flags url key =
     in
     let
         model =
-            Model key url (SubmissionInfo (Submission "" "" "" 0 Image Nothing Nothing Nothing) (CommentSubmission "" "" "" Image 0 Nothing Nothing Nothing) Nothing Nothing "" Nothing (Captcha "" "") Nothing (MessageSubmission 0 "" "" Image Nothing "" "" "")) (FeedInfo "" S.empty S.empty True 0 0 "" (D.fromList []) (D.fromList []) (D.fromList []) (D.fromList []) Nothing S.empty) (NavigationInfo Feed) (SettingsInfo [] defaultTheme) (MailInfo "" (D.fromList [])) (Time.millisToPosix 0)
+            Model key url (SubmissionInfo (Submission "" "" "" 0 Image Nothing Nothing Nothing []) (CommentSubmission "" "" "" Image 0 Nothing Nothing Nothing) Nothing Nothing "" Nothing (Captcha "" "") Nothing (MessageSubmission 0 "" "" Image Nothing "" "" "")) (FeedInfo "" S.empty S.empty True 0 0 "" (D.fromList []) (D.fromList []) (D.fromList []) (D.fromList []) Nothing S.empty) (NavigationInfo Feed) (SettingsInfo [] defaultTheme) (MailInfo "" (D.fromList [])) (Time.millisToPosix 0)
     in
     case normalized of
         Just post ->
@@ -398,7 +398,7 @@ update msg model =
                                                     json
                                     in
                                     if isValidCaptcha (submitting.captchaAnswer |> M.withDefault "") expected then
-                                        ( model |> setSubmissionInfo (model.subInfo |> setSubmission (Submission "" "" "" 0 Image Nothing Nothing Nothing) |> setSubmitting Nothing |> setSubmissionFeedback "" |> setSubIdentity Nothing), Cmd.batch [ toSubmit |> submitPost, genCaptcha () ] )
+                                        ( model |> setSubmissionInfo (model.subInfo |> setSubmission (Submission "" "" "" 0 Image Nothing Nothing Nothing []) |> setSubmitting Nothing |> setSubmissionFeedback "" |> setSubIdentity Nothing), Cmd.batch [ toSubmit |> submitPost, genCaptcha () ] )
 
                                     else
                                         ( model |> setSubmissionInfo (model.subInfo |> setSubmissionFeedback "Invalid captcha response."), Cmd.none )
@@ -833,6 +833,12 @@ update msg model =
         SetTheme theme ->
             ( model, setTheme theme )
 
+        RemoveSubTag tag ->
+            ( model |> setSubmissionInfo (model.subInfo |> setSubmission (model.subInfo.submission |> setTags (model.subInfo.submission.tags |> L.filter ((/=) tag)))), Cmd.none )
+
+        AddSubTag tag ->
+            ( model |> setSubmissionInfo (model.subInfo |> setSubmission (model.subInfo.submission |> setTags (tag :: model.subInfo.submission.tags))), Cmd.none )
+
 
 port loadPost : String -> Cmd msg
 
@@ -927,7 +933,7 @@ view model =
                             [ div [ class "logo" ] [ img [ src "/logo.png" ] [], div [ class "logoText" ] [ div [ class "logoBigLine" ] [ h1 [] [ text "DubChan" ], p [ class "betaMarker" ] [ text "Beta" ] ], p [] [ text "Anonymous. Unmoderated." ] ] ]
                             , viewQuickLinks
                             , viewQotd model
-                            , viewSubmitPost model.settingsInfo.identities model.subInfo.subIdentity (model.subInfo.submitting |> M.map .hash |> M.andThen (\id -> D.get id model.feedInfo.captchas |> M.map .data) |> M.withDefault "") (model.subInfo.submitting |> M.andThen .captchaAnswer |> M.withDefault "") model.subInfo.submissionFeedback model.subInfo.submission
+                            , viewSubmitPost (S.fromList model.subInfo.submission.tags) model.settingsInfo.identities model.subInfo.subIdentity (model.subInfo.submitting |> M.map .hash |> M.andThen (\id -> D.get id model.feedInfo.captchas |> M.map .data) |> M.withDefault "") (model.subInfo.submitting |> M.andThen .captchaAnswer |> M.withDefault "") model.subInfo.submissionFeedback model.subInfo.submission
                             , canvas [ id "captchaGen" ] []
                             , div [ class "feedControls" ]
                                 [ viewSearch model.feedInfo.searchQuery

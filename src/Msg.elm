@@ -64,6 +64,8 @@ type Msg
     | GotDm JD.Value
     | RemoveIdentity String
     | SetTheme String
+    | RemoveSubTag String
+    | AddSubTag String
 
 
 type Tab

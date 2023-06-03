@@ -244,6 +244,11 @@ setSubmission s m =
     { m | submission = s }
 
 
+setTags : List String -> Submission -> Submission
+setTags tags s =
+    { s | tags = tags }
+
+
 setSubmitting : Maybe Post -> SubmissionInfo -> SubmissionInfo
 setSubmitting s m =
     { m | submitting = s }

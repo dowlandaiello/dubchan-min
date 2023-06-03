@@ -14,8 +14,10 @@ import Json.Encode.Optional as Opt
 import List as L
 import Maybe as M
 import Msg exposing (Conversation, Msg(..))
+import Set
 import Sha256 exposing (sha256)
 import String as S
+import Tag exposing (viewTagsArea)
 import Time exposing (Month(..), Posix, Zone, customZone, millisToPosix, posixToMillis, toDay, toHour, toMinute, toMonth, toYear)
 
 
@@ -35,6 +37,7 @@ type alias Post =
     , pubKey : Maybe String
     , sig : Maybe String
     , encPubKey : Maybe String
+    , tags : Maybe (List String)
     }
 
 
@@ -47,6 +50,7 @@ type alias Submission =
     , tripcode : Maybe String
     , pubKey : Maybe String
     , encPubKey : Maybe String
+    , tags : List String
     }
 
 
@@ -136,7 +140,7 @@ submissionFromPost p =
         content =
             M.withDefault (Multimedia "" Image) p.content
     in
-    { title = p.title, text = p.text, content = content.src, nonce = p.nonce, contentKind = content.kind, pubKey = p.pubKey, tripcode = p.tripcode, encPubKey = p.encPubKey }
+    { title = p.title, text = p.text, content = content.src, nonce = p.nonce, contentKind = content.kind, pubKey = p.pubKey, tripcode = p.tripcode, encPubKey = p.encPubKey, tags = p.tags |> M.withDefault [] }
 
 
 fromSubmission : Captcha -> String -> Int -> Posix -> Submission -> Post
@@ -166,6 +170,7 @@ fromSubmission captcha prev target time sub =
         , pubKey = sub.pubKey
         , sig = Nothing
         , encPubKey = sub.encPubKey
+        , tags = Just sub.tags
         }
 
     else
@@ -299,6 +304,7 @@ postEncoder p =
     , ( "sig", p.sig ) |> Opt.optionalField JE.string
     , ( "tripcode", p.tripcode ) |> Opt.optionalField JE.string
     , ( "encPubKey", p.encPubKey ) |> Opt.optionalField JE.string
+    , ( "tags", p.tags ) |> Opt.optionalField (JE.list JE.string)
     ]
         |> Opt.objectMaySkip
 
@@ -366,6 +372,7 @@ postDecoder =
         |> andMap (maybe (field "pubKey" string))
         |> andMap (maybe (field "sig" string))
         |> andMap (maybe (field "encPubKey" string))
+        |> andMap (maybe (field "tags" (list string)))
 
 
 showMonth : Month -> String
@@ -667,6 +674,11 @@ viewCommentText c =
     div [ class "commentText" ] (c |> S.lines |> L.map viewTextLine)
 
 
+viewTags : List String -> Html Msg
+viewTags =
+    L.map (text >> L.singleton >> div [ class "tag" ]) >> div [ class "tags" ]
+
+
 viewPost : Bool -> Int -> Bool -> Post -> Html Msg
 viewPost blurred nComments verified post =
     div [ class "post" ]
@@ -680,7 +692,7 @@ viewPost blurred nComments verified post =
                 , h1 [] [ text post.title ]
                 , viewTimestamp post.timestamp
                 ]
-            , div [ class "postActions" ] [ img [ src "/link.svg", onClick (CopyString ("https://dubchan.net/?post=" ++ S.dropRight 1 post.id)) ] [] ]
+            , div [ class "postActions" ] [ img [ src "/link.svg", onClick (CopyString ("https://dubchan.net/?post=" ++ S.dropRight 1 post.id)) ] [], viewTags (post.tags |> M.withDefault []) ]
             ]
         , case post.pubKey of
             Just pubKey ->
@@ -829,10 +841,13 @@ viewIdSelector anonAllowed allIdentities activeIdentity onAliasChange =
         )
 
 
-viewSubmitPost : List Identity -> Maybe Identity -> String -> String -> String -> Submission -> Html Msg
-viewSubmitPost identities activeIdentity captcha captchaAnswer feedback submission =
+viewSubmitPost : Set.Set String -> List Identity -> Maybe Identity -> String -> String -> String -> Submission -> Html Msg
+viewSubmitPost activeTags identities activeIdentity captcha captchaAnswer feedback submission =
     div [ class "submitArea" ]
-        [ h1 [] [ text "New Post" ]
+        [ div [ class "areaHeader" ]
+            [ h1 [] [ text "New Post" ]
+            , viewTagsArea activeTags
+            ]
         , input [ id "titleInput", placeholder "Post Title", onInput ChangeSubTitle, value submission.title ] []
         , div [ class "bodyInputArea" ]
             [ if submission.content /= "" then
