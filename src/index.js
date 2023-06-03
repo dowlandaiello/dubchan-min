@@ -408,6 +408,10 @@ const getSettings = async () => {
     console.warn(e);
   }
 
+  if (!settings.theme) {
+    settings.theme = "Default";
+  }
+
   settings.identities = await Promise.all(settings.identities.map(async iden => {
     if (!iden.encPubKey) {
       const encKey = await window.crypto.subtle.generateKey({ name: "RSA-OAEP", modulusLength: 4096, publicExponent: new Uint8Array([0x01, 0x00, 0x01]), hash: "SHA-256" }, true, ["encrypt", "decrypt"]);
@@ -447,6 +451,13 @@ app.ports.removeIdentity.subscribe(async (identity) => {
 
 app.ports.modifiedSettings.subscribe(settings => {
   window.localStorage.setItem("settings", JSON.stringify(settings));
+});
+
+app.ports.setTheme.subscribe(async theme => {
+  const settings = await getSettings();
+  settings.theme = theme;
+  window.localStorage.setItem("settings", JSON.stringify(settings));
+  app.ports.loadedSettings.send(settings);
 });
 
 const sign = async (keyStr, msgStr) => {

@@ -21,6 +21,7 @@ import Post exposing (Comment, CommentSubmission, Multimedia, MultimediaKind(..)
 import Set as S
 import Sha256 exposing (sha256)
 import String
+import Theme exposing (Theme, defaultTheme, themeDecoder, themes)
 import Time
 import Url
 import Url.Parser exposing (parse, query)
@@ -45,6 +46,7 @@ type alias NavigationInfo =
 
 type alias SettingsInfo =
     { identities : List Identity
+    , theme : Theme
     }
 
 
@@ -165,7 +167,7 @@ messageDecoder =
 
 settingsDecoder : JD.Decoder SettingsInfo
 settingsDecoder =
-    JD.map SettingsInfo (JD.field "identities" (JD.list identityDecoder))
+    JD.map2 SettingsInfo (JD.field "identities" (JD.list identityDecoder)) (JD.field "theme" (JD.map (flip D.get themes >> M.withDefault defaultTheme) string))
 
 
 settingsEncoder : SettingsInfo -> JE.Value

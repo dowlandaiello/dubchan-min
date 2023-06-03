@@ -63,6 +63,7 @@ type Msg
     | ChangeSubMessageTripcode (Maybe String)
     | GotDm JD.Value
     | RemoveIdentity String
+    | SetTheme String
 
 
 type Tab

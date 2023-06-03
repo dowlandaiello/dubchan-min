@@ -26,6 +26,7 @@ import Set as S
 import Settings exposing (viewSettings)
 import Sha256 exposing (sha256)
 import String
+import Theme exposing (defaultTheme)
 import Time
 import Url
 import Url.Parser exposing (parse, query)
@@ -250,7 +251,7 @@ init flags url key =
     in
     let
         model =
-            Model key url (SubmissionInfo (Submission "" "" "" 0 Image Nothing Nothing Nothing) (CommentSubmission "" "" "" Image 0 Nothing Nothing Nothing) Nothing Nothing "" Nothing (Captcha "" "") Nothing (MessageSubmission 0 "" "" Image Nothing "" "" "")) (FeedInfo "" S.empty S.empty True 0 0 "" (D.fromList []) (D.fromList []) (D.fromList []) (D.fromList []) Nothing S.empty) (NavigationInfo Feed) (SettingsInfo []) (MailInfo "" (D.fromList [])) (Time.millisToPosix 0)
+            Model key url (SubmissionInfo (Submission "" "" "" 0 Image Nothing Nothing Nothing) (CommentSubmission "" "" "" Image 0 Nothing Nothing Nothing) Nothing Nothing "" Nothing (Captcha "" "") Nothing (MessageSubmission 0 "" "" Image Nothing "" "" "")) (FeedInfo "" S.empty S.empty True 0 0 "" (D.fromList []) (D.fromList []) (D.fromList []) (D.fromList []) Nothing S.empty) (NavigationInfo Feed) (SettingsInfo [] defaultTheme) (MailInfo "" (D.fromList [])) (Time.millisToPosix 0)
     in
     case normalized of
         Just post ->
@@ -829,6 +830,9 @@ update msg model =
         RemoveIdentity iden ->
             ( model, removeIdentity iden )
 
+        SetTheme theme ->
+            ( model, setTheme theme )
+
 
 port loadPost : String -> Cmd msg
 
@@ -890,83 +894,89 @@ port messageLoaded : (JE.Value -> msg) -> Sub msg
 port removeIdentity : String -> Cmd msg
 
 
+port setTheme : String -> Cmd msg
+
+
 view : Model -> Browser.Document Msg
 view model =
     { title = "DubChan"
     , body =
-        let
-            navigator =
-                viewNavigator model.navInfo.tabViewing
-        in
-        let
-            home =
-                [ div
-                    (case model.feedInfo.viewing of
-                        Just _ ->
-                            [ class "feedContainer", class "hidden" ]
-
-                        Nothing ->
-                            [ class "feedContainer" ]
-                    )
+        [ div [ class "app", class model.settingsInfo.theme.name ]
+            (let
+                navigator =
+                    viewNavigator model.navInfo.tabViewing
+             in
+             let
+                home =
                     [ div
                         (case model.feedInfo.viewing of
                             Just _ ->
-                                [ class "feed", class "hidden" ]
+                                [ class "feedContainer", class "hidden" ]
 
                             Nothing ->
-                                [ class "feed" ]
+                                [ class "feedContainer" ]
                         )
-                        [ div [ class "logo" ] [ img [ src "/logo.png" ] [], div [ class "logoText" ] [ div [ class "logoBigLine" ] [ h1 [] [ text "DubChan" ], p [ class "betaMarker" ] [ text "Beta" ] ], p [] [ text "Anonymous. Unmoderated." ] ] ]
-                        , viewQuickLinks
-                        , viewQotd model
-                        , viewSubmitPost model.settingsInfo.identities model.subInfo.subIdentity (model.subInfo.submitting |> M.map .hash |> M.andThen (\id -> D.get id model.feedInfo.captchas |> M.map .data) |> M.withDefault "") (model.subInfo.submitting |> M.andThen .captchaAnswer |> M.withDefault "") model.subInfo.submissionFeedback model.subInfo.submission
-                        , canvas [ id "captchaGen" ] []
-                        , div [ class "feedControls" ]
-                            [ viewSearch model.feedInfo.searchQuery
-                            , p
-                                [ onClick ToggleBlurImages
-                                , if model.feedInfo.blurImages then
-                                    class "active"
+                        [ div
+                            (case model.feedInfo.viewing of
+                                Just _ ->
+                                    [ class "feed", class "hidden" ]
 
-                                  else
-                                    class ""
+                                Nothing ->
+                                    [ class "feed" ]
+                            )
+                            [ div [ class "logo" ] [ img [ src "/logo.png" ] [], div [ class "logoText" ] [ div [ class "logoBigLine" ] [ h1 [] [ text "DubChan" ], p [ class "betaMarker" ] [ text "Beta" ] ], p [] [ text "Anonymous. Unmoderated." ] ] ]
+                            , viewQuickLinks
+                            , viewQotd model
+                            , viewSubmitPost model.settingsInfo.identities model.subInfo.subIdentity (model.subInfo.submitting |> M.map .hash |> M.andThen (\id -> D.get id model.feedInfo.captchas |> M.map .data) |> M.withDefault "") (model.subInfo.submitting |> M.andThen .captchaAnswer |> M.withDefault "") model.subInfo.submissionFeedback model.subInfo.submission
+                            , canvas [ id "captchaGen" ] []
+                            , div [ class "feedControls" ]
+                                [ viewSearch model.feedInfo.searchQuery
+                                , p
+                                    [ onClick ToggleBlurImages
+                                    , if model.feedInfo.blurImages then
+                                        class "active"
+
+                                      else
+                                        class ""
+                                    ]
+                                    [ text "Blur Images" ]
                                 ]
-                                [ text "Blur Images" ]
+                            , viewPosts
+                                model
                             ]
-                        , viewPosts
-                            model
                         ]
                     ]
-                ]
-        in
-        navigator
-            :: (case model.navInfo.tabViewing of
-                    Feed ->
-                        case model.feedInfo.viewing of
-                            Just viewing ->
-                                div [ class "viewer" ]
-                                    [ div [ class "viewerBody" ]
-                                        [ div [ class "navigation" ] [ img [ src "/back.svg", onClick (GoToPost Nothing) ] [] ]
-                                        , viewPost False 0 (L.member viewing.id verifiedPosts) viewing
-                                        , if model.subInfo.commentSubmission.parent /= viewing.id && model.subInfo.commentSubmission.parent /= "" then
-                                            text ""
+             in
+             navigator
+                :: (case model.navInfo.tabViewing of
+                        Feed ->
+                            case model.feedInfo.viewing of
+                                Just viewing ->
+                                    div [ class "viewer" ]
+                                        [ div [ class "viewerBody" ]
+                                            [ div [ class "navigation" ] [ img [ src "/back.svg", onClick (GoToPost Nothing) ] [] ]
+                                            , viewPost False 0 (L.member viewing.id verifiedPosts) viewing
+                                            , if model.subInfo.commentSubmission.parent /= viewing.id && model.subInfo.commentSubmission.parent /= "" then
+                                                text ""
 
-                                          else
-                                            viewCommentArea model.subInfo.subIdentity model.settingsInfo.identities (model.subInfo.commentSubmitting |> M.map .hash |> M.andThen (\id -> D.get id model.feedInfo.captchas |> M.map .data) |> M.withDefault "") (model.subInfo.commentSubmitting |> M.andThen .captchaAnswer |> M.withDefault "") model.subInfo.submissionFeedback model.subInfo.commentSubmission
-                                        , viewPostComments model
+                                              else
+                                                viewCommentArea model.subInfo.subIdentity model.settingsInfo.identities (model.subInfo.commentSubmitting |> M.map .hash |> M.andThen (\id -> D.get id model.feedInfo.captchas |> M.map .data) |> M.withDefault "") (model.subInfo.commentSubmitting |> M.andThen .captchaAnswer |> M.withDefault "") model.subInfo.submissionFeedback model.subInfo.commentSubmission
+                                            , viewPostComments model
+                                            ]
                                         ]
-                                    ]
-                                    :: home
+                                        :: home
 
-                            Nothing ->
-                                home
+                                Nothing ->
+                                    home
 
-                    Messages ->
-                        [ viewMail model ]
+                        Messages ->
+                            [ viewMail model ]
 
-                    Settings ->
-                        [ viewSettings model ]
-               )
+                        Settings ->
+                            [ viewSettings model ]
+                   )
+            )
+        ]
     }
 
 

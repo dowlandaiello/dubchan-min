@@ -9,19 +9,41 @@
   height: inherit;
 }
 
-body {
+body, .app {
   color: black;
   padding: 0;
   margin: 0;
 
   font-family: "Arial", "Helvetica", "sans-serif";
-  background-color: #09071C;
 
   display: flex;
   flex-flow: row nowrap;
   justify-content: flex-start;
   align-items: stretch;
   min-height: 100vh;
+  max-height: 100vh;
+  max-width: 100vw;
+  min-width: 100vw;
+}
+
+.app.Default {
+  --bg-lightest: #1a1837;
+  --bg: #09071c;
+  --accent:  #6358FF;
+  --svg-accent: invert(45%) sepia(95%) saturate(5136%) hue-rotate(234deg) brightness(102%) contrast(101%);
+  --bg-lighter: #110f25;
+}
+
+.app.Demon {
+  --bg-lightest: #571c13;
+  --bg: #220503;
+  --accent: #d707078f;
+  --svg-accent: invert(11%) sepia(77%) saturate(4562%) hue-rotate(354deg) brightness(120%) contrast(108%);
+  --bg-lighter: #4a0d08;
+}
+
+.app {
+  background-color: var(--bg);
 }
 
 #captchaGen {
@@ -121,6 +143,10 @@ body {
   overflow: auto;
 }
 
+.accentedSvg {
+  filter: var(--svg-accent);
+}
+
 .feedContainer.hidden {
   overflow: hidden;
 }
@@ -139,7 +165,7 @@ body {
 }
 
 .post {
-  background-color: #110F25;
+  background-color: var(--bg-lighter);
   border-radius: 5px;
   color: white;
 
@@ -147,7 +173,7 @@ body {
 
   margin-bottom: 1em;
 
-  border: 1px solid #6358FF;
+  border: 1px solid var(--accent);
 
   display: flex;
   flex-flow: column nowrap;
@@ -177,7 +203,7 @@ body {
   position: absolute;
   left: 0;
   top: 0;
-  background: linear-gradient(transparent 70vh, #110f25);
+  background: linear-gradient(transparent 70vh, var(--bg-lighter));
   pointer-events: none;
 }
 
@@ -206,7 +232,7 @@ body {
 
 .linkLine a {
   color: white;
-  border-bottom: 2px solid #6358FF;
+  border-bottom: 2px solid var(--accent);
   text-decoration: none;
   transition: 0.3s;
 }
@@ -379,7 +405,7 @@ body {
 
   transition: 0.3s;
   cursor: pointer;
-  color: #6358FF;
+  color: var(--accent);
   align-self: center;
 }
 
@@ -402,7 +428,7 @@ body {
 }
 
 .linksArea>* {
-  border-bottom: 1px solid #6358FF;
+  border-bottom: 1px solid var(--accent);
   font-weight: bold;
   transition: 0.3s;
   cursor: pointer;
@@ -437,7 +463,7 @@ body {
 }
 
 .searchArea {
-  background-color: #1A1837;
+  background-color: var(--bg-lightest);
   border-radius: 5px;
   color: white;
 
@@ -448,7 +474,7 @@ body {
   display: flex;
 
   flex-flow: column nowrap;
-  border: 1px solid #6358FF;
+  border: 1px solid var(--accent);
 
   display: flex;
   flex-flow: row nowrap;
@@ -475,7 +501,7 @@ body {
 }
 
 .submitArea {
-  background-color: #1A1837;
+  background-color: var(--bg-lightest);
   border-radius: 5px;
   color: white;
 
@@ -486,7 +512,7 @@ body {
   display: flex;
 
   flex-flow: column nowrap;
-  border: 1px solid #6358FF;
+  border: 1px solid var(--accent);
 }
 
 .submitArea input, .submitArea textarea {
@@ -596,8 +622,8 @@ body {
 
 .identityInput .anonCheckbox {
   margin-right: 0.5em;
-  background-color: #1a1837;
-  border: 1px solid #6358FF;
+  background-color: var(--bg-lightest);
+  border: 1px solid var(--accent);
   font-size: 1rem;
   width: 1rem;
   height: 1rem;
@@ -662,7 +688,7 @@ body {
 
 .submit {
   width: 100%;
-  background-color: #6358FF;
+  background-color: var(--accent);
   font-weight: bold;
   text-align: center;
   border-radius: 5px;
@@ -685,10 +711,10 @@ body {
   align-items: flex-end;
 
   color: white;
-  border-bottom: 1px solid #6358FF;
+  border-bottom: 1px solid var(--accent);
   position: sticky;
   top: 0;
-  background-color: #09071C;
+  background-color: var(--bg);
   font-size: 1.5em;
   z-index: 2;
   margin-top: 2em;
@@ -702,7 +728,7 @@ body {
 }
 
 .betaMarker {
-  background-color: #6358FF;
+  background-color: var(--accent);
   border-radius: 5px;
   margin: 0;
   margin-left: 0.5em;
@@ -742,7 +768,7 @@ body {
 }
 
 .viewerBody {
-  background-color: #110F25;
+  background-color: var(--bg-lighter);
   height: 100%;
   width: 60%;
 
@@ -785,7 +811,7 @@ body {
   border: 0;
 
   margin-bottom: 3em;;
-  border-bottom: 1px solid #6358FF;
+  border-bottom: 1px solid var(--accent);
   border-radius: 0px;
 }
 
@@ -829,7 +855,7 @@ body {
 }
 
 .refresh {
-  background-color: #6358FF;
+  background-color: var(--accent);
   font-weight: bold;
   text-align: center;
   border-radius: 5px;
@@ -883,7 +909,7 @@ body {
 }
 
 .commentInputArea p {
-  background-color: #6358FF;
+  background-color: var(--accent);
   font-weight: bold;
   text-align: center;
   border-radius: 5px;
@@ -1111,7 +1137,7 @@ body {
 
 .identityInput .newIdentity {
   background-color: transparent;
-  border: 1px solid #6358FF;
+  border: 1px solid var(--accent);
   font-weight: bold;
   text-align: center;
   border-radius: 5px;
@@ -1167,6 +1193,48 @@ body {
   width: 1em;
 }
 
+.themesSelector {
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: flex-start;
+  align-items: stretch;
+}
+
+.themesSelector>*:not(:last-child) {
+  margin-right: 0.5em;
+}
+
+.themeSwatch {
+  padding: 2em;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.themeSwatch:hover {
+  opacity: 0.8;
+}
+
+.themeSwatch.Default {
+  --border-color: #6358FF;
+  background-color: #1a1837;
+}
+
+.themeSwatch.Demon {
+  --border-color: #d707078f;
+  background-color: #571c13;
+}
+
+.themeSwatch {
+  border: 1px solid var(--border-color);
+}
+
+.themeSwatch.active {
+  border: none;
+  background-color: var(--border-color);
+  font-weight: bold;
+}
+
 .mailWorkspace {
   display: flex;
   flex-flow: row nowrap;
@@ -1193,7 +1261,7 @@ body {
 }
 
 .mailbox {
-  background-color: #110f25;
+  background-color: var(--bg-lighter);
   padding: 1em;
   cursor: pointer;
 
@@ -1202,7 +1270,7 @@ body {
 }
 
 .mailbox.active {
-  background-color: #1a1837;
+  background-color: var(--bg-lightest);
 }
 
 .mailbox:hover {
@@ -1227,7 +1295,7 @@ body {
 }
 
 .messagesArea {
-  background-color: #1a1837;
+  background-color: var(--bg-lightest);
   min-height: 100%;
   width: 100%;
   border-radius: 5px;
@@ -1353,7 +1421,7 @@ body {
 
 .chatInput .icon {
   width: 1.5em;
-  background-color: #6358FF;
+  background-color: var(--accent);
   padding: 0.5em;
   border-radius: 5px;
   cursor: pointer;
@@ -1491,9 +1559,9 @@ body {
     bottom: 0;
     left: 0;
     right: 0;
-    background-color: #09071c;
+    background-color: var(--bg);
     z-index: 2;
-    border-top: 0.5px solid #6358FF;
+    border-top: 0.5px solid var(--accent);
     border-radius: 0px;
     flex-flow: row nowrap;
     justify-content: center;
