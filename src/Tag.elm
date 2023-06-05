@@ -10,7 +10,32 @@ import Set as S
 
 tags : List String
 tags =
-    [ "UW", "Lifting", "LGBT", "NSFW" ]
+    [ "UW", "Fitness", "LGBT", "NSFW" ]
+
+
+viewFilterToggle : S.Set String -> Html Msg
+viewFilterToggle activeTags =
+    tags
+        |> L.map
+            (\tag ->
+                div
+                    ([ class "tag" |> Just
+                     , if S.member tag activeTags then
+                        class "active" |> Just
+
+                       else
+                        Nothing
+                     , if S.member tag activeTags then
+                        RemoveTagViewing tag |> onClick |> Just
+
+                       else
+                        AddTagViewing tag |> onClick |> Just
+                     ]
+                        |> L.filterMap identity
+                    )
+                    [ text tag ]
+            )
+        |> div [ class "tagList", class "tagFilters" ]
 
 
 viewTagSelector : S.Set String -> Html Msg

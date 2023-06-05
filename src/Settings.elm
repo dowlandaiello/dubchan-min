@@ -9,15 +9,15 @@ import List as L
 import Model exposing (Model)
 import Msg exposing (Msg(..))
 import String as St
-import Theme exposing (themes)
+import Theme exposing (themeClass, themes)
 
 
 viewAboutSection : Html Msg
 viewAboutSection =
     div [ class "section" ]
         [ h2 [ class "sectionHeader" ] [ text "App Info" ]
-        , p [] [ text "App Version: 0.1.95" ]
-        , p [] [ text "Last Updated: 6/2/23" ]
+        , p [] [ text "App Version: 0.1.97" ]
+        , p [] [ text "Last Updated: 6/4/23" ]
         ]
 
 
@@ -41,22 +41,24 @@ viewThemes model =
         [ h2 [ class "sectionHeader" ] [ text "Themes" ]
         , D.values themes
             |> L.map
-                (.name
-                    >> (\name ->
-                            div
-                                ([ Just (class name)
-                                 , Just (class "themeSwatch")
-                                 , Just (onClick (SetTheme name))
-                                 , if model.settingsInfo.theme.name == name then
-                                    Just (class "active")
+                (\theme ->
+                    let
+                        name =
+                            theme.name
+                    in
+                    div
+                        ([ Just (class (theme |> themeClass))
+                         , Just (class "themeSwatch")
+                         , Just (onClick (SetTheme name))
+                         , if model.settingsInfo.theme.name == name then
+                            Just (class "active")
 
-                                   else
-                                    Nothing
-                                 ]
-                                    |> L.filterMap identity
-                                )
-                                [ text name ]
-                       )
+                           else
+                            Nothing
+                         ]
+                            |> L.filterMap identity
+                        )
+                        [ text name ]
                 )
             |> div [ class "themesSelector" ]
         ]

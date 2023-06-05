@@ -340,6 +340,11 @@ setTabViewing t nav =
     { nav | tabViewing = t }
 
 
+setTagsViewing : S.Set String -> FeedInfo -> FeedInfo
+setTagsViewing t feed =
+    { feed | tagsViewing = t }
+
+
 setMailboxInfo : MailInfo -> Model -> Model
 setMailboxInfo m model =
     { model | mailInfo = m }

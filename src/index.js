@@ -136,7 +136,7 @@ app.ports.loadPost.subscribe((m) => {
     if (postStr !== undefined) {
       try {
         const post = { ...JSON.parse(postStr), id: m, nComments: 0, uniqueFactor: 0.0 };
-        const epoched = { ...post, nonce: post.nonce ?? 0, hash: post.hash ?? "", prev: post.prev, captcha: post.captcha };
+        const epoched = { ...post, nonce: post.nonce ?? 0, hash: post.hash ?? "", prev: post.prev, captcha: post.captcha, tags: post.tags };
 
         if (epoched.content === null) {
           app.ports.postLoaded.send({ ...epoched, comments: [] });
@@ -187,7 +187,7 @@ const loadChunk = (timestamp) => {
       // This is a post
       if (json.title !== undefined) {
         const post = json;
-        const sanitized = { timestamp: post.timestamp, title: post.title, text: post.text, id: id, comments: null, content: null, nComments: 0, nonce: post.nonce ?? 0, hash: post.hash ?? "", uniqueFactor: 0.0, prev: post.prev, captcha: post.captcha, captchaAnswer: post.captchaAnswer, pubKey: post.pubKey, tripcode: post.tripcode };
+        const sanitized = { timestamp: post.timestamp, title: post.title, text: post.text, id: id, comments: null, content: null, nComments: 0, nonce: post.nonce ?? 0, hash: post.hash ?? "", uniqueFactor: 0.0, prev: post.prev, captcha: post.captcha, captchaAnswer: post.captchaAnswer, pubKey: post.pubKey, tripcode: post.tripcode, tags: post.tags };
 
         if (post.content !== null) {
           const rich = { ...sanitized, content: post.content };

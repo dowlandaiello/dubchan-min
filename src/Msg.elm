@@ -66,6 +66,8 @@ type Msg
     | SetTheme String
     | RemoveSubTag String
     | AddSubTag String
+    | RemoveTagViewing String
+    | AddTagViewing String
 
 
 type Tab

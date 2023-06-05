@@ -26,8 +26,8 @@ import Set as S
 import Settings exposing (viewSettings)
 import Sha256 exposing (sha256)
 import String
-import Tag exposing (tags)
-import Theme exposing (defaultTheme)
+import Tag exposing (tags, viewFilterToggle)
+import Theme exposing (defaultTheme, themeClass)
 import Time
 import Url
 import Url.Parser exposing (parse, query)
@@ -841,6 +841,12 @@ update msg model =
         AddSubTag tag ->
             ( model |> setSubmissionInfo (model.subInfo |> setSubmission (model.subInfo.submission |> setTags (tag :: model.subInfo.submission.tags))), Cmd.none )
 
+        RemoveTagViewing tag ->
+            ( model |> setFeedInfo (model.feedInfo |> setTagsViewing (model.feedInfo.tagsViewing |> S.remove tag)), Cmd.none )
+
+        AddTagViewing tag ->
+            ( model |> setFeedInfo (model.feedInfo |> setTagsViewing (model.feedInfo.tagsViewing |> S.insert tag)), Cmd.none )
+
 
 port loadPost : String -> Cmd msg
 
@@ -909,7 +915,7 @@ view : Model -> Browser.Document Msg
 view model =
     { title = "DubChan"
     , body =
-        [ div [ class "app", class model.settingsInfo.theme.name ]
+        [ div [ class "app", class (model.settingsInfo.theme |> themeClass) ]
             (let
                 navigator =
                     viewNavigator model.navInfo.tabViewing
@@ -939,6 +945,7 @@ view model =
                             , canvas [ id "captchaGen" ] []
                             , div [ class "feedControls" ]
                                 [ viewSearch model.feedInfo.searchQuery
+                                , viewFilterToggle model.feedInfo.tagsViewing
                                 , p
                                     [ onClick ToggleBlurImages
                                     , if model.feedInfo.blurImages then
