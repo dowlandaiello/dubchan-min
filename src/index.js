@@ -359,7 +359,7 @@ setTimeout(() => {
   feed.addEventListener('scroll', (e) => {
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
-      if (feed.scrollTop + feed.clientHeight >= feed.scrollHeight * 0.8) {
+      if (feed.scrollTop + feed.clientHeight >= feed.scrollHeight * 0.5) {
         app.ports.scrolledBottom.send(true);
       }
     }, scrollDebounce);

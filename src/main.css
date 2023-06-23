@@ -42,6 +42,22 @@ body, .app {
   --bg-lighter: #4a0d08;
 }
 
+.app.Suit {
+  --bg-lightest: #272728;
+  --bg: #1a1a1e;
+  --accent:  #8e8b8b;
+  --svg-accent: invert(52%) sepia(49%) saturate(0%) hue-rotate(193deg) brightness(96%) contrast(83%);
+  --bg-lighter: #363637;
+}
+
+.app.TouchGrass {
+  --bg-lightest: #366e26;
+  --bg: #326224;
+  --accent:  #325727;
+  --svg-accent: invert(26%) sepia(9%) saturate(3250%) hue-rotate(61deg) brightness(93%) contrast(79%);
+  --bg-lighter: #366e26;
+}
+
 .app {
   background-color: var(--bg);
 }
@@ -463,6 +479,8 @@ body, .app {
   justify-content: space-between;
   align-items: center;
   color: white;
+
+  margin-bottom: 1em;
 }
 
 .feedControls>p {
@@ -486,8 +504,6 @@ body, .app {
   color: white;
 
   padding: 0.5em;
-
-  margin-bottom: 1em;
 
   display: flex;
 
@@ -1250,6 +1266,16 @@ body, .app {
   background-color: #571c13;
 }
 
+.themeSwatch.Suit {
+  --border-color: #8e8b8b;
+  background-color: #363637;
+}
+
+.themeSwatch.TouchGrass {
+  --border-color: #325727;
+  background-color: #326224;
+}
+
 .themeSwatch {
   border: 1px solid var(--border-color);
 }
@@ -1513,6 +1539,14 @@ body, .app {
   cursor: pointer;
 }
 
+.tagList.tagFilters .tag {
+  padding: 0.5em;
+}
+
+.tagFilters {
+  margin-left: 0.5em;
+}
+
 .tagList .tag:hover {
   opacity: 0.8;
 }
@@ -1665,12 +1699,28 @@ body, .app {
   }
 }
 
-@media (min-width: 716px) {
+@media (max-width: 867px) {
+  .tagFilters .tag {
+    padding: 0.5em;
+    font-size: 0.75em;
+  }
+}
+
+@media (max-width: 908px) {
+  .feed {
+    padding-left: 10%;
+    padding-right: 10%;
+  }
+}
+
+@media (min-width: 944px) {
   .feed {
     padding-left: 20%;
     padding-right: 20%;
   }
+}
 
+@media (min-width: 716px) {
   .content.blurred {
     -webkit-filter: blur(40px);
     -moz-filter: blur(40px);
@@ -1679,3 +1729,49 @@ body, .app {
     filter: blur(40px);
   }
 }
+
+@media (max-width: 1238px) {
+  .feedControls {
+    flex-flow: row wrap;
+  }
+
+  .tagFilters {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 1238px) and (min-width: 659px) {
+  .areaHeader {
+    flex-flow: row wrap;
+    margin-bottom: 1em;
+  }
+
+  .areaHeader .tag {
+    font-size: 0.75em;
+    padding: 0.5em;
+  }
+}
+
+@media (max-width: 659px) {
+  .areaHeader .tag {
+    padding: 0.5em;
+    font-size: 0.75em;
+  }
+}
+
+@media (max-width: 1131px) and (min-width: 659px) {
+  .logoText p {
+    font-size: 0.75em;
+  }
+
+  .logoText h1 {
+    font-size: 1.5em;
+  }
+}
+
+@media (max-width: 1011px) and (min-width: 659px) {
+  .logoText {
+    font-size: 0.8em;
+  }
+}
+

@@ -19,7 +19,7 @@ import Maybe.Extra as ME
 import Model exposing (..)
 import Msg exposing (Conversation, Msg(..), Tab(..))
 import Nav exposing (viewNavigator)
-import Post exposing (Comment, CommentSubmission, MultimediaKind(..), Post, Submission, commentDecoder, commentEncoder, commentFromSubmission, commentId, descending, fromSubmission, getChunkTime, isValidHash, postChunkDecoder, postDecoder, postEncoder, postId, pushComment, setCommentSubTripcode, setContent, setContentKind, setText, setTitle, setTripcode, subContentValid, submissionFromComment, submissionFromPost, viewCommentArea, viewCommentText, viewExpandableMultimedia, viewMultimedia, viewPost, viewSubmitPost, viewTimestamp)
+import Post exposing (Comment, CommentSubmission, MultimediaKind(..), Post, Submission, commentDecoder, commentEncoder, commentFromSubmission, commentId, descending, fromSubmission, getChunkTime, isValidHash, isValidLength, postChunkDecoder, postDecoder, postEncoder, postId, pushComment, setCommentSubTripcode, setContent, setContentKind, setText, setTitle, setTripcode, subContentValid, submissionFromComment, submissionFromPost, viewCommentArea, viewCommentText, viewExpandableMultimedia, viewMultimedia, viewPost, viewSubmitPost, viewTimestamp)
 import Random
 import Route exposing (..)
 import Set as S
@@ -77,6 +77,62 @@ quotes =
     ]
 
 
+similarityThreshold : Float
+similarityThreshold =
+    0.5
+
+
+similarity : String -> String -> Bool
+similarity a b =
+    let
+        aWords =
+            S.fromList (String.words a)
+    in
+    let
+        bWords =
+            S.fromList (String.words b)
+    in
+    toFloat
+        (S.size (S.intersect aWords bWords))
+        / toFloat (max (S.size aWords) (S.size bWords))
+        >= similarityThreshold
+
+
+similarPosts : Model -> Post -> List Post
+similarPosts model p =
+    D.values model.feedInfo.feed |> L.filter (\post -> post.id /= p.id) |> L.filter (\post -> (similarity post.text p.text && post.text /= "") || similarity post.title p.title)
+
+
+uniqueFactor : Model -> Post -> Float
+uniqueFactor model a =
+    let
+        nSimilar =
+            L.length (similarPosts model a)
+    in
+    0.01 * (toFloat (max nSimilar 0) / toFloat (D.size model.feedInfo.feed + 1))
+
+
+sortFactor : Model -> Post -> Float
+sortFactor model a =
+    let
+        timeFactor =
+            0.99 * (toFloat (max (youngestCommentFor a.id model) a.timestamp) / 1682664445.0)
+    in
+    (1 - a.uniqueFactor) + timeFactor
+
+
+sortUnique model a b =
+    case compare (sortFactor model a) (sortFactor model b) of
+        LT ->
+            GT
+
+        EQ ->
+            EQ
+
+        GT ->
+            LT
+
+
 viewPosts : Model -> Html Msg
 viewPosts model =
     div []
@@ -89,6 +145,7 @@ viewPosts model =
             |> L.filter (\post -> not (L.member post.id susPosts) && not (String.startsWith "fuck you" post.title) && not (String.startsWith "This is why you need a CAPTCHA." post.title))
             |> L.filter (\post -> model.feedInfo.captchas |> D.get post.hash |> M.map (isValidCaptcha (post.captchaAnswer |> M.withDefault "")) |> M.withDefault True)
             |> L.filter (\post -> isValidHash (epochs post.timestamp) post.hash)
+            |> L.filter isValidLength
             |> L.filter (\post -> S.diff (S.fromList (post.tags |> M.withDefault [])) model.feedInfo.tagsViewing |> S.size |> (==) 0)
             |> L.filter
                 (\post ->
@@ -99,6 +156,7 @@ viewPosts model =
                     String.contains q (String.toLower post.title) || String.contains q (String.toLower post.text)
                 )
             |> LE.uniqueBy .id
+            |> L.sortWith (sortUnique model)
             |> L.map (\post -> viewPost (not (S.member post.id model.feedInfo.visibleMedia) && model.feedInfo.blurImages) (allCommentsFor post.id model |> M.map L.length |> M.withDefault 0) (L.member post.id verifiedPosts) post)
         )
 
@@ -345,12 +403,16 @@ update msg model =
                         hashed =
                             { post | hash = postId (Time.millisToPosix (post.timestamp * 1000)) (submissionFromPost post) }
                     in
-                    ( model |> addPost chunk.timestamp post
+                    let
+                        factored =
+                            { hashed | uniqueFactor = uniqueFactor model hashed }
+                    in
+                    ( model |> addPost chunk.timestamp factored
                     , if not (D.member post.hash model.feedInfo.captchas) then
                         getComments post.id
 
                       else
-                        Cmd.batch [ getComments post.id, loadCaptcha (hashed |> postEncoder) ]
+                        Cmd.batch [ getComments post.id, loadCaptcha (factored |> postEncoder) ]
                     )
 
                 otherwise ->

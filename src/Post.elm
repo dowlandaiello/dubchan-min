@@ -38,6 +38,7 @@ type alias Post =
     , sig : Maybe String
     , encPubKey : Maybe String
     , tags : Maybe (List String)
+    , uniqueFactor : Float
     }
 
 
@@ -171,6 +172,7 @@ fromSubmission captcha prev target time sub =
         , sig = Nothing
         , encPubKey = sub.encPubKey
         , tags = Just sub.tags
+        , uniqueFactor = 0.0
         }
 
     else
@@ -373,6 +375,7 @@ postDecoder =
         |> andMap (maybe (field "sig" string))
         |> andMap (maybe (field "encPubKey" string))
         |> andMap (maybe (field "tags" (list string)))
+        |> andMap (field "uniqueFactor" float)
 
 
 showMonth : Month -> String
@@ -463,6 +466,11 @@ showTime t =
 isValidHash : Int -> String -> Bool
 isValidHash target id =
     S.length id >= target && (S.left target id |> S.all ((==) '0'))
+
+
+isValidLength : Post -> Bool
+isValidLength =
+    .title >> S.length >> (>) 130
 
 
 viewTimestamp : Int -> Html Msg
@@ -848,7 +856,7 @@ viewSubmitPost activeTags identities activeIdentity captcha captchaAnswer feedba
             [ h1 [] [ text "New Post" ]
             , viewTagsArea activeTags
             ]
-        , input [ id "titleInput", placeholder "Post Title", onInput ChangeSubTitle, value submission.title ] []
+        , input [ id "titleInput", placeholder "Post Title (max 130 chars)", onInput ChangeSubTitle, value submission.title, maxlength 130 ] []
         , div [ class "bodyInputArea" ]
             [ if submission.content /= "" then
                 viewMultimediaSub (Just (Multimedia submission.content submission.contentKind))
